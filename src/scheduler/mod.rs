@@ -27,12 +27,9 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub async fn new() -> Result<Self> {
+    pub async fn new(history: Arc<RwLock<Vec<ExecutionRecord>>>) -> Result<Self> {
         let inner = JobScheduler::new().await?;
-        Ok(Self {
-            inner,
-            history: Arc::new(RwLock::new(Vec::new())),
-        })
+        Ok(Self { inner, history })
     }
 
     /// Register a digest task with cron scheduling

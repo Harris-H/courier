@@ -1,3 +1,4 @@
+mod api;
 mod channels;
 mod chat;
 mod config;
@@ -5,10 +6,12 @@ mod error;
 mod llm;
 mod scheduler;
 mod sources;
+mod state;
 
 use std::sync::Arc;
 
 use anyhow::Result;
+use tokio::sync::RwLock;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -16,8 +19,9 @@ use channels::{email::EmailChannel, feishu::FeishuChannel, telegram::TelegramCha
 use chat::handler::ChatHandler;
 use config::AppConfig;
 use llm::{openai::OpenAIClient, LlmClient};
-use scheduler::{task::DigestTask, Scheduler};
+use scheduler::{task::DigestTask, ExecutionRecord, Scheduler};
 use sources::{hackernews::HackerNewsSource, reddit::RedditSource, rss::RssSource, Source};
+use state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,8 +57,11 @@ async fn main() -> Result<()> {
     let channels = build_channels(&config);
     info!("Loaded {} channel(s)", channels.len());
 
-    // Setup scheduler
-    let mut sched = Scheduler::new().await?;
+    // Shared execution history
+    let history: Arc<RwLock<Vec<ExecutionRecord>>> = Arc::new(RwLock::new(Vec::new()));
+
+    // Build tasks
+    let mut tasks: Vec<Arc<DigestTask>> = Vec::new();
     for schedule_config in &config.schedules {
         let task_sources: Vec<Arc<dyn Source>> = schedule_config
             .sources
@@ -76,18 +83,42 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        let task = Arc::new(DigestTask::new(
+        tasks.push(Arc::new(DigestTask::new(
             schedule_config,
             task_sources,
             llm.clone(),
             task_channels,
-        ));
-
-        sched.add_task(task, schedule_config).await?;
+        )));
     }
 
+    // Setup scheduler
+    let mut sched = Scheduler::new(history.clone()).await?;
+    for (task, schedule_config) in tasks.iter().zip(config.schedules.iter()) {
+        sched.add_task(task.clone(), schedule_config).await?;
+    }
     sched.start().await?;
-    info!("Scheduler started with {} task(s)", config.schedules.len());
+    info!("Scheduler started with {} task(s)", tasks.len());
+
+    // Build shared app state
+    let app_state = Arc::new(AppState {
+        config: config.clone(),
+        sources: sources.clone(),
+        channels: channels.clone(),
+        llm: llm.clone(),
+        tasks: tasks.clone(),
+        schedule_configs: config.schedules.clone(),
+        scheduler_history: history,
+        started_at: std::time::Instant::now(),
+    });
+
+    // Start API server
+    let api_port = config.general.api_port.unwrap_or(3001);
+    let api_state = app_state.clone();
+    tokio::spawn(async move {
+        if let Err(e) = api::start_server(api_state, api_port).await {
+            tracing::error!("API server error: {}", e);
+        }
+    });
 
     // Start chat mode if Telegram chat is enabled
     if config.channels.telegram.enabled && config.channels.telegram.chat_mode {
@@ -95,7 +126,7 @@ async fn main() -> Result<()> {
         let chat_handler = Arc::new(ChatHandler::new(llm.clone(), sources.clone()));
         start_telegram_chat(config.channels.telegram.bot_token.clone(), chat_handler).await;
     } else {
-        info!("📬 Courier is running (scheduler only). Press Ctrl+C to stop.");
+        info!("📬 Courier is running. Press Ctrl+C to stop.");
         tokio::signal::ctrl_c().await?;
     }
 

@@ -19,6 +19,8 @@ pub struct GeneralConfig {
     pub log_level: String,
     #[serde(default = "default_data_dir")]
     pub data_dir: String,
+    /// API server port (default: 3001)
+    pub api_port: Option<u16>,
 }
 
 fn default_log_level() -> String {
