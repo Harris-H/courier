@@ -1,11 +1,27 @@
 use std::sync::Arc;
+use std::time::Duration;
 
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::channels::Channel;
 use crate::config::ScheduleConfig;
 use crate::llm::LlmClient;
-use crate::sources::Source;
+use crate::sources::{Article, Source};
+
+/// Stats returned after successful task execution
+#[derive(Debug)]
+pub struct TaskStats {
+    pub articles_fetched: usize,
+    pub digest_length: usize,
+    pub channels_sent: usize,
+    pub channels_failed: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum TaskStatus {
+    Success,
+    Failed,
+}
 
 /// A digest task: fetch from sources → summarize via LLM → push to channels
 pub struct DigestTask {
@@ -14,6 +30,7 @@ pub struct DigestTask {
     pub llm: Arc<dyn LlmClient>,
     pub channels: Vec<Arc<dyn Channel>>,
     pub prompt_template: Option<String>,
+    pub max_retries: u32,
 }
 
 impl DigestTask {
@@ -29,61 +46,182 @@ impl DigestTask {
             llm,
             channels,
             prompt_template: config.prompt_template.clone(),
+            max_retries: config.max_retries.unwrap_or(2),
         }
     }
 
-    pub async fn execute(&self) -> anyhow::Result<()> {
-        info!("Running digest task: {}", self.name);
+    pub async fn execute(&self) -> anyhow::Result<TaskStats> {
+        info!("📰 Running digest: {}", self.name);
 
-        // 1. Fetch articles from all sources
+        // 1. Fetch articles from all sources concurrently
+        let all_articles = self.fetch_all_sources().await;
+
+        if all_articles.is_empty() {
+            warn!("No articles fetched for '{}', skipping", self.name);
+            return Ok(TaskStats {
+                articles_fetched: 0,
+                digest_length: 0,
+                channels_sent: 0,
+                channels_failed: 0,
+            });
+        }
+
+        info!("Collected {} articles total", all_articles.len());
+
+        // 2. Build content for LLM
+        let content = Self::format_articles(&all_articles);
+
+        // 3. Summarize via LLM (with retry)
+        let digest = self.summarize_with_retry(&content).await?;
+        info!("Digest generated ({} chars)", digest.len());
+
+        // 4. Push to all channels concurrently
+        let title = format!(
+            "📬 {} - {}",
+            self.name,
+            chrono::Local::now().format("%Y-%m-%d %H:%M")
+        );
+        let (sent, failed) = self.push_to_channels(&title, &digest).await;
+
+        Ok(TaskStats {
+            articles_fetched: all_articles.len(),
+            digest_length: digest.len(),
+            channels_sent: sent,
+            channels_failed: failed,
+        })
+    }
+
+    /// Fetch from all sources concurrently
+    async fn fetch_all_sources(&self) -> Vec<Article> {
+        let handles: Vec<_> = self
+            .sources
+            .iter()
+            .map(|source| {
+                let source = source.clone();
+                tokio::spawn(async move {
+                    match source.fetch().await {
+                        Ok(articles) => {
+                            info!("✔ {} → {} articles", source.name(), articles.len());
+                            articles
+                        }
+                        Err(e) => {
+                            error!("✘ {} → failed: {}", source.name(), e);
+                            Vec::new()
+                        }
+                    }
+                })
+            })
+            .collect();
+
         let mut all_articles = Vec::new();
-        for source in &self.sources {
-            match source.fetch().await {
-                Ok(articles) => {
-                    info!("Fetched {} articles from {}", articles.len(), source.name());
-                    all_articles.extend(articles);
-                }
-                Err(e) => {
-                    error!("Failed to fetch from {}: {}", source.name(), e);
-                }
+        for handle in handles {
+            match handle.await {
+                Ok(articles) => all_articles.extend(articles),
+                Err(e) => error!("Source task panicked: {}", e),
             }
         }
 
-        if all_articles.is_empty() {
-            info!("No articles fetched, skipping digest");
-            return Ok(());
-        }
+        all_articles
+    }
 
-        // 2. Build content for LLM
-        let content = all_articles
+    /// Format articles into a text block for LLM consumption
+    fn format_articles(articles: &[Article]) -> String {
+        articles
             .iter()
             .enumerate()
             .map(|(i, a)| {
-                format!(
-                    "{}. [{}] {}\n   URL: {}\n   {}",
-                    i + 1,
-                    a.source,
-                    a.title,
-                    a.url.as_deref().unwrap_or("N/A"),
-                    a.summary.as_deref().unwrap_or("")
-                )
+                let mut entry = format!("{}. [{}] {}", i + 1, a.source, a.title);
+                if let Some(url) = &a.url {
+                    entry.push_str(&format!("\n   URL: {}", url));
+                }
+                if let Some(score) = a.score {
+                    entry.push_str(&format!(" | Score: {}", score));
+                }
+                if let Some(comments) = a.comments_count {
+                    entry.push_str(&format!(" | Comments: {}", comments));
+                }
+                if let Some(summary) = &a.summary {
+                    let truncated: String = summary.chars().take(200).collect();
+                    entry.push_str(&format!("\n   {}", truncated));
+                }
+                entry
             })
             .collect::<Vec<_>>()
-            .join("\n\n");
+            .join("\n\n")
+    }
 
-        // 3. Summarize via LLM
-        let digest = self.llm.summarize(&content, self.prompt_template.as_deref()).await?;
-        info!("Digest generated ({} chars)", digest.len());
+    /// Call LLM with retry on transient failures
+    async fn summarize_with_retry(&self, content: &str) -> anyhow::Result<String> {
+        let mut last_error = None;
 
-        // 4. Push to all channels
-        let title = format!("📬 {} - {}", self.name, chrono::Local::now().format("%Y-%m-%d"));
-        for channel in &self.channels {
-            match channel.send(&title, &digest).await {
-                Ok(_) => info!("Sent digest via {}", channel.name()),
-                Err(e) => error!("Failed to send via {}: {}", channel.name(), e),
+        for attempt in 0..=self.max_retries {
+            if attempt > 0 {
+                let delay = Duration::from_secs(2u64.pow(attempt));
+                warn!(
+                    "Retrying LLM summarize (attempt {}/{}) after {}s",
+                    attempt + 1,
+                    self.max_retries + 1,
+                    delay.as_secs()
+                );
+                tokio::time::sleep(delay).await;
+            }
+
+            match self
+                .llm
+                .summarize(content, self.prompt_template.as_deref())
+                .await
+            {
+                Ok(digest) => return Ok(digest),
+                Err(e) => {
+                    warn!("LLM call failed: {}", e);
+                    last_error = Some(e);
+                }
             }
         }
 
-        Ok(())
+        Err(last_error
+            .map(|e| anyhow::anyhow!(e))
+            .unwrap_or_else(|| anyhow::anyhow!("LLM summarize failed with no error")))
+    }
+
+    /// Push digest to all channels concurrently
+    async fn push_to_channels(&self, title: &str, digest: &str) -> (usize, usize) {
+        let handles: Vec<_> = self
+            .channels
+            .iter()
+            .map(|channel| {
+                let channel = channel.clone();
+                let title = title.to_string();
+                let digest = digest.to_string();
+                tokio::spawn(async move {
+                    match channel.send(&title, &digest).await {
+                        Ok(_) => {
+                            info!("📤 Sent via {}", channel.name());
+                            true
+                        }
+                        Err(e) => {
+                            error!("📤 Failed via {}: {}", channel.name(), e);
+                            false
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        let mut sent = 0usize;
+        let mut failed = 0usize;
+
+        for handle in handles {
+            match handle.await {
+                Ok(true) => sent += 1,
+                Ok(false) => failed += 1,
+                Err(e) => {
+                    error!("Channel task panicked: {}", e);
+                    failed += 1;
+                }
+            }
+        }
+
+        (sent, failed)
     }
 }

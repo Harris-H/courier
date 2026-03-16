@@ -9,7 +9,7 @@ mod sources;
 use std::sync::Arc;
 
 use anyhow::Result;
-use tracing::{error, info};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use channels::{email::EmailChannel, feishu::FeishuChannel, telegram::TelegramChannel, Channel};
@@ -68,6 +68,14 @@ async fn main() -> Result<()> {
             .filter_map(|name| channels.iter().find(|c| c.name() == name.as_str()).cloned())
             .collect();
 
+        if task_sources.is_empty() {
+            tracing::warn!(
+                "Schedule '{}' has no matching sources, skipping",
+                schedule_config.name
+            );
+            continue;
+        }
+
         let task = Arc::new(DigestTask::new(
             schedule_config,
             task_sources,
@@ -75,16 +83,7 @@ async fn main() -> Result<()> {
             task_channels,
         ));
 
-        sched
-            .add_digest_job(schedule_config, move || {
-                let task = task.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = task.execute().await {
-                        error!("Digest task failed: {}", e);
-                    }
-                })
-            })
-            .await?;
+        sched.add_task(task, schedule_config).await?;
     }
 
     sched.start().await?;

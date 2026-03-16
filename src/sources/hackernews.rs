@@ -11,11 +11,13 @@ const HN_API_BASE: &str = "https://hacker-news.firebaseio.com/v0";
 
 #[derive(Debug, Deserialize)]
 struct HnItem {
+    #[allow(dead_code)]
     id: u64,
     title: Option<String>,
     url: Option<String>,
     score: Option<i64>,
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     item_type: Option<String>,
     descendants: Option<u32>,
     #[serde(default)]

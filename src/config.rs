@@ -155,6 +155,10 @@ pub struct ScheduleConfig {
     pub sources: Vec<String>,
     pub channels: Vec<String>,
     pub prompt_template: Option<String>,
+    /// Run the task immediately on startup
+    pub run_on_start: Option<bool>,
+    /// Max retry count for LLM calls (default: 2)
+    pub max_retries: Option<u32>,
 }
 
 impl AppConfig {

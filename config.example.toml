@@ -91,5 +91,9 @@ cron = "0 0 1 * * *"
 sources = ["hackernews"]
 # 推送通道
 channels = ["telegram"]
+# 启动时立即执行一次
+run_on_start = false
+# LLM 调用最大重试次数
+max_retries = 2
 # 摘要模板 (可选)
 # prompt_template = ""
