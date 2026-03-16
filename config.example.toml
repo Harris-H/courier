@@ -1,0 +1,95 @@
+# ============================================================
+# Courier 配置文件
+# 复制此文件为 config.toml 并填入你的实际值
+# ============================================================
+
+[general]
+# 日志级别: trace, debug, info, warn, error
+log_level = "info"
+# 数据存储路径
+data_dir = "./data"
+
+# ============================================================
+# 数据源配置
+# ============================================================
+
+[sources.hackernews]
+enabled = true
+# 抓取 top stories 数量
+top_n = 20
+
+[sources.reddit]
+enabled = false
+# 要订阅的 subreddit 列表
+subreddits = ["programming", "rust", "technology"]
+# 每个 subreddit 抓取帖子数
+top_n = 10
+
+[sources.rss]
+enabled = false
+# RSS feed 列表
+feeds = [
+    # { name = "Rust Blog", url = "https://blog.rust-lang.org/feed.xml" },
+]
+
+# ============================================================
+# LLM 配置
+# ============================================================
+
+[llm]
+# OpenAI 兼容 API
+api_base = "https://api.openai.com/v1"
+api_key = "sk-your-api-key"
+model = "gpt-4o-mini"
+# 摘要最大 token 数
+max_tokens = 2000
+# 自定义系统提示词 (可选)
+# system_prompt = ""
+
+# ============================================================
+# 推送通道配置
+# ============================================================
+
+[channels.telegram]
+enabled = true
+# Bot Token (从 @BotFather 获取)
+bot_token = "your-telegram-bot-token"
+# 推送目标 Chat ID (个人/群组)
+chat_ids = []
+# 是否启用聊天模式
+chat_mode = true
+
+[channels.feishu]
+enabled = false
+# 飞书 Bot Webhook URL
+webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/your-hook-id"
+# 飞书应用凭证 (用于聊天模式, 可选)
+# app_id = ""
+# app_secret = ""
+
+[channels.email]
+enabled = false
+# SMTP 配置
+smtp_host = "smtp.gmail.com"
+smtp_port = 465
+smtp_username = "your-email@gmail.com"
+smtp_password = "your-app-password"
+# 发件人
+from = "Courier Bot <your-email@gmail.com>"
+# 收件人列表
+to = ["recipient@example.com"]
+
+# ============================================================
+# 定时任务配置
+# ============================================================
+
+[[schedules]]
+name = "每日科技日报"
+# Cron 表达式: 每天早上 9:00 (UTC+8 = 1:00 UTC)
+cron = "0 0 1 * * *"
+# 数据源
+sources = ["hackernews"]
+# 推送通道
+channels = ["telegram"]
+# 摘要模板 (可选)
+# prompt_template = ""

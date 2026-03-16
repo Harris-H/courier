@@ -1,0 +1,47 @@
+[package]
+name = "courier"
+version = "0.1.0"
+edition = "2021"
+description = "A lightweight personal news digest bot — fetch, summarize, and push"
+license = "MIT"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Telegram bot
+teloxide = { version = "0.13", features = ["macros"] }
+
+# Email
+lettre = { version = "0.11", features = ["tokio1-rustls-tls", "builder", "smtp-transport"], default-features = false }
+
+# LLM
+async-openai = "0.27"
+
+# Scheduling
+tokio-cron-scheduler = "0.13"
+
+# Content parsing
+scraper = "0.22"
+rss = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Misc
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+url = { version = "2", features = ["serde"] }
