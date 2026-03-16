@@ -18,6 +18,23 @@ impl FeishuChannel {
             config,
         }
     }
+
+    /// Convert markdown to Feishu-compatible format
+    /// Feishu cards only support # and ## headings; convert ### and deeper to bold
+    fn adapt_markdown(content: &str) -> String {
+        content
+            .lines()
+            .map(|line| {
+                let trimmed = line.trim_start();
+                if trimmed.starts_with("### ") {
+                    format!("**{}**", trimmed.trim_start_matches('#').trim())
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 #[async_trait]
@@ -28,6 +45,8 @@ impl Channel for FeishuChannel {
 
     async fn send(&self, title: &str, content: &str) -> Result<()> {
         info!("Sending to Feishu webhook");
+
+        let adapted_content = Self::adapt_markdown(content);
 
         // Feishu webhook supports rich text cards
         let body = serde_json::json!({
@@ -43,7 +62,7 @@ impl Channel for FeishuChannel {
                 "elements": [
                     {
                         "tag": "markdown",
-                        "content": content,
+                        "content": adapted_content,
                     }
                 ]
             }

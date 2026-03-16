@@ -2,6 +2,7 @@ mod api;
 mod channels;
 mod chat;
 mod config;
+mod db;
 mod error;
 mod llm;
 mod scheduler;
@@ -32,15 +33,23 @@ async fn main() -> Result<()> {
 
     let config = AppConfig::load(&config_path)?;
 
-    // Init logging
+    // Init logging - write to daily rotating log files
+    let log_dir = std::path::Path::new(&config.general.data_dir).join("logs");
+    std::fs::create_dir_all(&log_dir)?;
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "courier.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new(&config.general.log_level)),
+                .unwrap_or_else(|_| EnvFilter::new("courier=info,warn")),
         )
+        .with_writer(non_blocking)
+        .with_ansi(false)
         .init();
 
     info!("🚀 Courier starting...");
+    println!("📬 Courier started. Logs are written to: {}", log_dir.display());
 
     // Create data directory
     std::fs::create_dir_all(&config.general.data_dir)?;
@@ -59,6 +68,19 @@ async fn main() -> Result<()> {
 
     // Shared execution history
     let history: Arc<RwLock<Vec<ExecutionRecord>>> = Arc::new(RwLock::new(Vec::new()));
+
+    // Initialize database
+    let db = Arc::new(db::Database::open(&config.general.data_dir)?);
+
+    // Load history from database into memory
+    if let Ok(records) = db.get_history(100) {
+        let mut hist = history.write().await;
+        // Records come in reverse order from DB, reverse to maintain chronological order
+        let mut records = records;
+        records.reverse();
+        *hist = records;
+        info!("Loaded {} history record(s) from database", hist.len());
+    }
 
     // Build tasks
     let mut tasks: Vec<Arc<DigestTask>> = Vec::new();
@@ -92,7 +114,7 @@ async fn main() -> Result<()> {
     }
 
     // Setup scheduler
-    let mut sched = Scheduler::new(history.clone()).await?;
+    let sched = Arc::new(Scheduler::new(history.clone(), db.clone()).await?);
     for (task, schedule_config) in tasks.iter().zip(config.schedules.iter()) {
         sched.add_task(task.clone(), schedule_config).await?;
     }
@@ -102,12 +124,15 @@ async fn main() -> Result<()> {
     // Build shared app state
     let app_state = Arc::new(AppState {
         config: config.clone(),
+        config_path: config_path.clone(),
         sources: sources.clone(),
         channels: channels.clone(),
         llm: llm.clone(),
         tasks: tasks.clone(),
-        schedule_configs: config.schedules.clone(),
+        schedule_configs: RwLock::new(config.schedules.clone()),
         scheduler_history: history,
+        scheduler: sched.clone(),
+        db: db.clone(),
         started_at: std::time::Instant::now(),
     });
 
@@ -130,7 +155,7 @@ async fn main() -> Result<()> {
         tokio::signal::ctrl_c().await?;
     }
 
-    sched.shutdown().await?;
+    info!("Shutting down...");
     Ok(())
 }
 

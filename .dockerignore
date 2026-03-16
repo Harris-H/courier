@@ -1,0 +1,8 @@
+target/
+web/node_modules/
+web/src/
+data/
+*.db
+.git/
+.gitignore
+README.md

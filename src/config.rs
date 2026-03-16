@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::error::{CourierError, Result};
@@ -118,7 +118,7 @@ pub struct TelegramConfig {
     pub chat_mode: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct FeishuConfig {
     #[serde(default)]
     pub enabled: bool,

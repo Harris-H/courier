@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router'
+import ToastContainer from './components/ToastContainer.vue'
 
 const route = useRoute()
 
 const navItems = [
-  { path: '/', label: '📊 Dashboard', name: 'dashboard' },
-  { path: '/tasks', label: '⏰ Tasks', name: 'tasks' },
-  { path: '/history', label: '📋 History', name: 'history' },
-  { path: '/config', label: '⚙️ Config', name: 'config' },
+  { path: '/', label: '📊 仪表盘', name: 'dashboard' },
+  { path: '/tasks', label: '⏰ 定时任务', name: 'tasks' },
+  { path: '/history', label: '📋 执行历史', name: 'history' },
+  { path: '/config', label: '⚙️ 配置', name: 'config' },
 ]
 </script>
 
@@ -19,7 +20,7 @@ const navItems = [
         <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
           📬 Courier
         </h1>
-        <p class="text-xs text-gray-400 mt-1">News Digest Bot</p>
+        <p class="text-xs text-gray-400 mt-1">新闻摘要机器人</p>
       </div>
       <nav class="flex-1 p-3 space-y-1">
         <RouterLink
@@ -37,7 +38,7 @@ const navItems = [
         </RouterLink>
       </nav>
       <div class="p-4 border-t border-gray-200 text-xs text-gray-400">
-        Powered by Rust + Vue
+        由 Rust + Vue 驱动
       </div>
     </aside>
 
@@ -45,5 +46,7 @@ const navItems = [
     <main class="flex-1 p-6 overflow-auto">
       <RouterView />
     </main>
+
+    <ToastContainer />
   </div>
 </template>

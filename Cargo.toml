@@ -28,6 +28,7 @@ async-openai = "0.27"
 
 # Scheduling
 tokio-cron-scheduler = "0.13"
+uuid = "1"
 
 # Content parsing
 scraper = "0.22"
@@ -36,6 +37,7 @@ rss = "2"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
 
 # Error handling
 anyhow = "1"
@@ -49,3 +51,6 @@ tower-http = { version = "0.6", features = ["cors", "fs"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 url = { version = "2", features = ["serde"] }
+
+# Database
+rusqlite = { version = "0.35", features = ["bundled"] }

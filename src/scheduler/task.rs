@@ -13,6 +13,7 @@ use crate::sources::{Article, Source};
 pub struct TaskStats {
     pub articles_fetched: usize,
     pub digest_length: usize,
+    pub digest_content: String,
     pub channels_sent: usize,
     pub channels_failed: usize,
 }
@@ -61,6 +62,7 @@ impl DigestTask {
             return Ok(TaskStats {
                 articles_fetched: 0,
                 digest_length: 0,
+                digest_content: String::new(),
                 channels_sent: 0,
                 channels_failed: 0,
             });
@@ -86,6 +88,7 @@ impl DigestTask {
         Ok(TaskStats {
             articles_fetched: all_articles.len(),
             digest_length: digest.len(),
+            digest_content: digest,
             channels_sent: sent,
             channels_failed: failed,
         })

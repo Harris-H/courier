@@ -26,10 +26,10 @@ const successRate = computed(() => {
 
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">Dashboard</h2>
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">仪表盘</h2>
 
     <!-- Loading -->
-    <div v-if="store.loading" class="text-gray-400 text-center py-12">Loading...</div>
+    <div v-if="store.loading" class="text-gray-400 text-center py-12">加载中...</div>
 
     <!-- Error -->
     <div v-else-if="store.error" class="bg-red-50 text-red-600 p-4 rounded-lg">
@@ -40,19 +40,19 @@ const successRate = computed(() => {
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <p class="text-xs text-gray-400 uppercase tracking-wide">Version</p>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">版本</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">v{{ store.status?.version }}</p>
         </div>
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <p class="text-xs text-gray-400 uppercase tracking-wide">Uptime</p>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">运行时间</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ uptimeText }}</p>
         </div>
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <p class="text-xs text-gray-400 uppercase tracking-wide">Tasks</p>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">任务数</p>
           <p class="text-2xl font-bold text-gray-800 mt-1">{{ store.status?.tasks_count ?? 0 }}</p>
         </div>
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <p class="text-xs text-gray-400 uppercase tracking-wide">Success Rate</p>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">成功率</p>
           <p class="text-2xl font-bold text-green-600 mt-1">{{ successRate }}</p>
         </div>
       </div>
@@ -61,14 +61,14 @@ const successRate = computed(() => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Sources & Channels -->
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">Active Components</h3>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">活跃组件</h3>
           <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <span class="text-gray-700">📰 Sources</span>
+              <span class="text-gray-700">📰 数据源</span>
               <span class="text-sm font-medium text-gray-500">{{ store.status?.sources_count ?? 0 }}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-gray-700">📤 Channels</span>
+              <span class="text-gray-700">📤 推送渠道</span>
               <span class="text-sm font-medium text-gray-500">{{ store.status?.channels_count ?? 0 }}</span>
             </div>
           </div>
@@ -76,8 +76,8 @@ const successRate = computed(() => {
 
         <!-- Recent Executions -->
         <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">Recent Executions</h3>
-          <div v-if="recentHistory.length === 0" class="text-gray-400 text-sm">No executions yet</div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">最近执行</h3>
+          <div v-if="recentHistory.length === 0" class="text-gray-400 text-sm">暂无执行记录</div>
           <div v-else class="space-y-2">
             <div
               v-for="entry in recentHistory"

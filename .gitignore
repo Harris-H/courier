@@ -4,3 +4,5 @@
 .env
 config.toml
 data/
+*.tar
+*.tar.gz

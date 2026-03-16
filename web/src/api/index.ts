@@ -29,6 +29,11 @@ export interface HistoryEntry {
   duration_ms: number
   articles_count: number
   error_message: string | null
+  has_content: boolean
+}
+
+export interface HistoryContentResponse {
+  content: string | null
 }
 
 export interface ConfigOverview {
@@ -37,6 +42,7 @@ export interface ConfigOverview {
   llm_api_base: string
   sources: { hackernews: boolean; reddit: boolean; rss: boolean }
   channels: { telegram: boolean; feishu: boolean; email: boolean }
+  feishu_webhook_url: string
 }
 
 export interface SourceInfo {
@@ -44,11 +50,39 @@ export interface SourceInfo {
   enabled: boolean
 }
 
+export interface FeishuConfigUpdate {
+  enabled: boolean
+  webhook_url: string
+}
+
+export interface LlmConfigUpdate {
+  model: string
+}
+
+export interface UpdateConfigResponse {
+  success: boolean
+  message: string
+}
+
+export interface UpdateScheduleRequest {
+  name?: string
+  cron?: string
+  max_retries?: number
+}
+
 export const getStatus = () => api.get<StatusResponse>('/status')
 export const getTasks = () => api.get<TaskInfo[]>('/tasks')
 export const runTask = (name: string) => api.post(`/tasks/${name}/run`)
+export const updateTaskSchedule = (name: string, data: UpdateScheduleRequest) =>
+  api.put<UpdateConfigResponse>(`/tasks/${name}/schedule`, data)
 export const getHistory = () => api.get<HistoryEntry[]>('/history')
+export const getHistoryContent = (index: number) =>
+  api.get<HistoryContentResponse>(`/history/${index}/content`)
 export const getConfig = () => api.get<ConfigOverview>('/config')
 export const getSources = () => api.get<SourceInfo[]>('/sources')
+export const updateFeishuConfig = (data: FeishuConfigUpdate) =>
+  api.put<UpdateConfigResponse>('/config/feishu', data)
+export const updateLlmConfig = (data: LlmConfigUpdate) =>
+  api.put<UpdateConfigResponse>('/config/llm', data)
 
 export default api
