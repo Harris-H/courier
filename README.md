@@ -15,12 +15,14 @@
 
 ## Architecture
 
-\Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
+```
+Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
          ↑                                        ↑
          └──────── Scheduler(Cron) ───────────────┘
                         + Chat Mode
                         + Web Dashboard
-\
+```
+
 ## Tech Stack
 
 | Component | Technology |
@@ -41,33 +43,36 @@
 
 ### 1. Configure
 
-\\ash
+```bash
 cp config.example.toml config.toml
 # Edit config.toml with your API keys and preferences
-\
+```
+
 ### 2. Run
 
-\\ash
+```bash
 cargo run --release
-\
-The dashboard will be available at \http://localhost:9090\.
+```
+
+The dashboard will be available at `http://localhost:9090`.
 
 ### 3. Docker
 
-\\ash
+```bash
 # Build frontend first
 cd web && npm install && npm run build && cd ..
 
 # Build and run
 docker build -t courier .
-docker run -d \\
-  --name courier \\
-  -p 9090:9090 \\
-  -v ./config.toml:/app/config.toml:ro \\
-  -v courier_data:/app/data \\
-  -e TZ=Asia/Shanghai \\
+docker run -d \
+  --name courier \
+  -p 9090:9090 \
+  -v ./config.toml:/app/config.toml:ro \
+  -v courier_data:/app/data \
+  -e TZ=Asia/Shanghai \
   courier
-\
+```
+
 ## Configuration
 
 See [config.example.toml](./config.example.toml) for all available options.
@@ -76,10 +81,10 @@ See [config.example.toml](./config.example.toml) for all available options.
 
 | Model ID | Name | Provider |
 |----------|------|----------|
-| \doubao-seed-2-0-lite-260215\ | Doubao Seed 2.0 Lite (default) | Volcengine (ARK) |
-| \glm-4-7-251222\ | GLM-4.7B | Zhipu AI |
-| \deepseek-v3-2-251201\ | DeepSeek V3.2 | DeepSeek |
-| \kimi-k2-thinking-251104\ | Kimi K2 Thinking | Moonshot AI |
+| `doubao-seed-2-0-lite-260215` | Doubao Seed 2.0 Lite (default) | Volcengine (ARK) |
+| `glm-4-7-251222` | GLM-4.7B | Zhipu AI |
+| `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
+| `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
 
 ### Key Configuration Sections
 

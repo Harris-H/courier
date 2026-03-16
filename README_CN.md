@@ -15,12 +15,14 @@
 
 ## 架构
 
-\Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
+```
+Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
          ↑                                    ↑
          └──────── Scheduler(Cron) ───────────┘
                         + 聊天模式
                         + Web 仪表盘
-\
+```
+
 ## 技术栈
 
 | 组件 | 技术 |
@@ -41,32 +43,36 @@
 
 ### 1. 配置
 
-\\ash
+```bash
 cp config.example.toml config.toml
 # 编辑 config.toml，填入你的 API keys
-\
+```
+
 ### 2. 运行
 
-\\ash
+```bash
 cargo run --release
-\
-仪表盘地址：\http://localhost:9090
+```
+
+仪表盘地址：`http://localhost:9090`
+
 ### 3. Docker 部署
 
-\\ash
+```bash
 # 先构建前端
 cd web && npm install && npm run build && cd ..
 
 # 构建并运行
 docker build -t courier .
-docker run -d \\
-  --name courier \\
-  -p 9090:9090 \\
-  -v ./config.toml:/app/config.toml:ro \\
-  -v courier_data:/app/data \\
-  -e TZ=Asia/Shanghai \\
+docker run -d \
+  --name courier \
+  -p 9090:9090 \
+  -v ./config.toml:/app/config.toml:ro \
+  -v courier_data:/app/data \
+  -e TZ=Asia/Shanghai \
   courier
-\
+```
+
 ## 配置说明
 
 参见 [config.example.toml](./config.example.toml) 了解所有可用选项。
@@ -75,10 +81,10 @@ docker run -d \\
 
 | 模型 ID | 名称 | 提供商 |
 |---------|------|--------|
-| \doubao-seed-2-0-lite-260215\ | Doubao Seed 2.0 Lite（默认） | 火山方舟（ARK） |
-| \glm-4-7-251222\ | GLM-4.7B | 智谱 AI |
-| \deepseek-v3-2-251201\ | DeepSeek V3.2 | DeepSeek |
-| \kimi-k2-thinking-251104\ | Kimi K2 Thinking | Moonshot AI |
+| `doubao-seed-2-0-lite-260215` | Doubao Seed 2.0 Lite（默认） | 火山方舟（ARK） |
+| `glm-4-7-251222` | GLM-4.7B | 智谱 AI |
+| `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
+| `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
 
 ### 主要配置项
 
