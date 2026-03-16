@@ -1,50 +1,106 @@
 # Courier 📬
 
-> 轻量级个人新闻摘要推送 Bot — 抓取、总结、推送，一气呵成。
+> A lightweight personal news digest bot — fetch, summarize, and push, all in one go.
 
-## 功能
+[中文文档](./README_CN.md)
 
-- 📰 **多数据源抓取**: Hacker News / Reddit / RSS
-- 🤖 **LLM 智能摘要**: 调用 OpenAI 兼容 API 生成日报
-- 📮 **多通道推送**: Telegram / 飞书 / Email
-- ⏰ **定时调度**: Cron 表达式灵活配置
-- 💬 **聊天模式**: 交互式对话，支持指令系统
+## Features
 
-## 架构
+- 📰 **Multi-source Fetching**: Hacker News / Reddit / RSS
+- 🤖 **LLM-powered Summarization**: Generate daily digests via OpenAI-compatible APIs
+- 📮 **Multi-channel Push**: Telegram / Feishu (Lark) / Email
+- ⏰ **Cron Scheduling**: Flexible cron expression configuration
+- 💬 **Chat Mode**: Interactive conversations via Telegram bot
+- 🖥️ **Web Dashboard**: Vue.js-based management panel with real-time status
 
-```
-Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
-         ↑                                    ↑
-         └──────── Scheduler(Cron) ───────────┘
-                       + Chat Mode
-```
+## Architecture
 
-## 快速开始
+\Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
+         ↑                                        ↑
+         └──────── Scheduler(Cron) ───────────────┘
+                        + Chat Mode
+                        + Web Dashboard
+\
+## Tech Stack
 
-### 1. 配置
+| Component | Technology |
+|-----------|------------|
+| Backend | Rust, Tokio, Axum |
+| Frontend | Vue 3, TypeScript, Tailwind CSS, Vite |
+| Database | SQLite (rusqlite) |
+| LLM | OpenAI-compatible API (async-openai) |
+| Bot | Teloxide (Telegram) |
+| Email | Lettre (SMTP) |
 
-```bash
+## Quick Start
+
+### Prerequisites
+
+- Rust 1.70+ (with Cargo)
+- Node.js 18+ (for frontend development)
+
+### 1. Configure
+
+\\ash
 cp config.example.toml config.toml
-# 编辑 config.toml，填入你的 API keys
-```
+# Edit config.toml with your API keys and preferences
+\
+### 2. Run
 
-### 2. 运行
-
-```bash
+\\ash
 cargo run --release
-```
+\
+The dashboard will be available at \http://localhost:9090\.
 
 ### 3. Docker
 
-```bash
+\\ash
+# Build frontend first
+cd web && npm install && npm run build && cd ..
+
+# Build and run
 docker build -t courier .
-docker run -d -v ./config.toml:/app/config.toml courier
-```
+docker run -d \\
+  --name courier \\
+  -p 9090:9090 \\
+  -v ./config.toml:/app/config.toml:ro \\
+  -v courier_data:/app/data \\
+  -e TZ=Asia/Shanghai \\
+  courier
+\
+## Configuration
 
-## 配置说明
+See [config.example.toml](./config.example.toml) for all available options.
 
-参见 [config.example.toml](./config.example.toml)
+### Supported LLM Models
+
+| Model ID | Name | Provider |
+|----------|------|----------|
+| \doubao-seed-2-0-lite-260215\ | Doubao Seed 2.0 Lite (default) | Volcengine (ARK) |
+| \glm-4-7-251222\ | GLM-4.7B | Zhipu AI |
+| \deepseek-v3-2-251201\ | DeepSeek V3.2 | DeepSeek |
+| \kimi-k2-thinking-251104\ | Kimi K2 Thinking | Moonshot AI |
+
+### Key Configuration Sections
+
+- **Sources**: Enable/disable HN, Reddit, RSS with per-source settings
+- **LLM**: API endpoint, model selection, custom prompts
+- **Channels**: Telegram bot token, Feishu webhook, Email SMTP
+- **Schedules**: Multiple cron jobs with different source/channel combinations
+
+## Dashboard
+
+The web dashboard provides:
+
+- 📊 **Overview**: Uptime, task count, success rate
+- ⏰ **Task Management**: Edit schedules, rename tasks, trigger manual runs
+- 📋 **Execution History**: View past digests with expandable content
+- ⚙️ **Configuration**: Switch LLM models, update channel settings
+
+## Deployment
+
+See [DEPLOY.md](./DEPLOY.md) for detailed Docker deployment instructions.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
