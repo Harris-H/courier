@@ -3,6 +3,10 @@ pub mod routes;
 use std::sync::Arc;
 
 use axum::{
+    extract::{Request, State},
+    http::StatusCode,
+    middleware::{self, Next},
+    response::Response,
     routing::{get, post, put},
     Router,
 };
@@ -11,6 +15,33 @@ use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 use crate::state::AppState;
+
+/// Authentication middleware: validates Bearer token against configured api_key
+async fn auth_middleware(
+    State(state): State<Arc<AppState>>,
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    if let Some(api_key) = &state.config.general.api_key {
+        if !api_key.is_empty() {
+            let auth_header = req
+                .headers()
+                .get("Authorization")
+                .and_then(|v| v.to_str().ok());
+
+            match auth_header {
+                Some(header) if header.starts_with("Bearer ") => {
+                    let token = &header[7..];
+                    if token != api_key {
+                        return Err(StatusCode::UNAUTHORIZED);
+                    }
+                }
+                _ => return Err(StatusCode::UNAUTHORIZED),
+            }
+        }
+    }
+    Ok(next.run(req).await)
+}
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
@@ -29,6 +60,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/config/feishu", put(routes::update_feishu_config))
         .route("/api/config/llm", put(routes::update_llm_config))
         .route("/api/sources", get(routes::list_sources))
+        .layer(middleware::from_fn_with_state(state.clone(), auth_middleware))
         .layer(cors)
         .with_state(state);
 

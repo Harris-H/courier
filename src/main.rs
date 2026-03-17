@@ -169,7 +169,10 @@ fn build_sources(config: &AppConfig) -> Vec<Arc<dyn Source>> {
     }
 
     if config.sources.reddit.enabled {
-        sources.push(Arc::new(RedditSource::new(config.sources.reddit.clone())));
+        match RedditSource::new(config.sources.reddit.clone()) {
+            Ok(source) => sources.push(Arc::new(source)),
+            Err(e) => tracing::error!("Failed to create Reddit source: {}", e),
+        }
     }
 
     if config.sources.rss.enabled {

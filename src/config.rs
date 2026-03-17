@@ -21,6 +21,8 @@ pub struct GeneralConfig {
     pub data_dir: String,
     /// API server port (default: 3001)
     pub api_port: Option<u16>,
+    /// Optional API key for dashboard authentication
+    pub api_key: Option<String>,
 }
 
 fn default_log_level() -> String {

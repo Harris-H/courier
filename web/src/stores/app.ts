@@ -14,8 +14,8 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await getStatus()
       status.value = res.data
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '获取状态失败'
     }
   }
 
@@ -23,8 +23,8 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await getTasks()
       tasks.value = res.data
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '获取任务列表失败'
     }
   }
 
@@ -32,8 +32,8 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await getHistory()
       history.value = res.data
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '获取执行历史失败'
     }
   }
 
@@ -41,8 +41,8 @@ export const useAppStore = defineStore('app', () => {
     try {
       const res = await getConfig()
       config.value = res.data
-    } catch (e: any) {
-      error.value = e.message
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '获取配置失败'
     }
   }
 

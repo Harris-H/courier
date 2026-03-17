@@ -10,6 +10,8 @@ log_level = "info"
 data_dir = "./data"
 # Dashboard API 端口
 api_port = 3001
+# Dashboard API 密钥 (可选, 设置后所有 API 请求需携带 Bearer Token)
+# api_key = "your-secret-api-key"
 
 # ============================================================
 # 数据源配置

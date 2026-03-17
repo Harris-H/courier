@@ -11,8 +11,34 @@ const editingTask = ref<string | null>(null)
 const editName = ref('')
 const editCron = ref('')
 const editRetries = ref(2)
+const editErrors = ref<Record<string, string>>({})
 
 onMounted(() => store.fetchTasks())
+
+function validateTaskForm(): boolean {
+  editErrors.value = {}
+
+  if (!editName.value.trim()) {
+    editErrors.value.name = '任务名称不能为空'
+  } else if (editName.value.trim().length > 50) {
+    editErrors.value.name = '任务名称不能超过 50 个字符'
+  }
+
+  if (!editCron.value.trim()) {
+    editErrors.value.cron = 'Cron 表达式不能为空'
+  } else {
+    const parts = editCron.value.trim().split(/\s+/)
+    if (parts.length < 5 || parts.length > 7) {
+      editErrors.value.cron = 'Cron 表达式格式无效（需要 5-7 个字段）'
+    }
+  }
+
+  if (editRetries.value < 0 || editRetries.value > 10 || !Number.isInteger(editRetries.value)) {
+    editErrors.value.retries = '重试次数需为 0-10 的整数'
+  }
+
+  return Object.keys(editErrors.value).length === 0
+}
 
 async function handleRunTask(name: string) {
   runningTask.value = name
@@ -20,8 +46,9 @@ async function handleRunTask(name: string) {
     const res = await runTask(name)
     toast.success(res.data.message)
     setTimeout(() => store.fetchHistory(), 2000)
-  } catch (e: any) {
-    toast.error(`任务执行失败：${e.message}`)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '未知错误'
+    toast.error(`任务执行失败：${msg}`)
   } finally {
     runningTask.value = null
   }
@@ -32,9 +59,15 @@ function startEdit(name: string, currentCron: string, currentRetries: number) {
   editName.value = name
   editCron.value = currentCron
   editRetries.value = currentRetries
+  editErrors.value = {}
 }
 
 async function saveEdit(originalName: string) {
+  if (!validateTaskForm()) {
+    Object.values(editErrors.value).forEach(msg => toast.error(msg))
+    return
+  }
+
   try {
     const res = await updateTaskSchedule(originalName, {
       name: editName.value !== originalName ? editName.value : undefined,
@@ -48,13 +81,15 @@ async function saveEdit(originalName: string) {
     } else {
       toast.error(res.data.message)
     }
-  } catch (e: any) {
-    toast.error(`保存失败：${e.message}`)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '未知错误'
+    toast.error(`保存失败：${msg}`)
   }
 }
 
 function cancelEdit() {
   editingTask.value = null
+  editErrors.value = {}
 }
 </script>
 
@@ -137,18 +172,20 @@ function cancelEdit() {
                 <input
                   v-model="editName"
                   type="text"
-                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  :class="['w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.name ? 'border-red-400' : 'border-gray-300']"
                   placeholder="输入任务名称"
                 />
+                <p v-if="editErrors.name" class="text-xs text-red-500 mt-1">{{ editErrors.name }}</p>
               </div>
               <div>
                 <label class="block text-sm text-gray-500 mb-1">Cron 表达式</label>
                 <input
                   v-model="editCron"
                   type="text"
-                  class="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  :class="['w-full px-3 py-2 text-sm font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.cron ? 'border-red-400' : 'border-gray-300']"
                   placeholder="0 0 10 * * *"
                 />
+                <p v-if="editErrors.cron" class="text-xs text-red-500 mt-1">{{ editErrors.cron }}</p>
               </div>
               <div>
                 <label class="block text-sm text-gray-500 mb-1">最大重试次数</label>
@@ -157,8 +194,9 @@ function cancelEdit() {
                   type="number"
                   min="0"
                   max="10"
-                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  :class="['w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.retries ? 'border-red-400' : 'border-gray-300']"
                 />
+                <p v-if="editErrors.retries" class="text-xs text-red-500 mt-1">{{ editErrors.retries }}</p>
               </div>
             </div>
 

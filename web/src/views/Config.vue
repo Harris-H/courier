@@ -50,14 +50,29 @@ async function saveLlmModel() {
     } else {
       toast.error(res.data.message)
     }
-  } catch (e: any) {
-    toast.error(`保存失败：${e.message}`)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '未知错误'
+    toast.error(`保存失败：${msg}`)
   } finally {
     llmSaving.value = false
   }
 }
 
 async function saveFeishuConfig() {
+  // Validate webhook URL when enabling
+  if (feishuEnabled.value && !feishuWebhookUrl.value.trim()) {
+    toast.error('启用飞书时必须提供 Webhook 地址')
+    return
+  }
+  if (feishuWebhookUrl.value.trim()) {
+    try {
+      new URL(feishuWebhookUrl.value.trim())
+    } catch {
+      toast.error('Webhook 地址格式无效，请输入完整 URL')
+      return
+    }
+  }
+
   feishuSaving.value = true
   try {
     const res = await updateFeishuConfig({
@@ -70,8 +85,9 @@ async function saveFeishuConfig() {
     } else {
       toast.error(res.data.message)
     }
-  } catch (e: any) {
-    toast.error(`保存失败：${e.message}`)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '未知错误'
+    toast.error(`保存失败：${msg}`)
   } finally {
     feishuSaving.value = false
   }

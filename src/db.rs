@@ -35,7 +35,8 @@ impl Database {
     }
 
     pub fn insert_record(&self, record: &ExecutionRecord) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         conn.execute(
             "INSERT INTO execution_history (task_name, status, executed_at, duration_ms, articles_count, error_message, digest_content)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -53,7 +54,8 @@ impl Database {
     }
 
     pub fn get_history(&self, limit: usize) -> anyhow::Result<Vec<ExecutionRecord>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         let mut stmt = conn.prepare(
             "SELECT task_name, status, executed_at, duration_ms, articles_count, error_message, digest_content
              FROM execution_history ORDER BY id DESC LIMIT ?1",
@@ -89,7 +91,8 @@ impl Database {
     }
 
     pub fn get_record_content(&self, id: i64) -> anyhow::Result<Option<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         let content = conn
             .query_row(
                 "SELECT digest_content FROM execution_history WHERE id = ?1",

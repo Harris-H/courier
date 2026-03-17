@@ -5,6 +5,21 @@ const api = axios.create({
   timeout: 15000,
 })
 
+// Global response error interceptor
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      console.error('[Courier] 认证失败：API Key 无效或未配置')
+    } else if (error.response?.status >= 500) {
+      console.error('[Courier] 服务器错误:', error.response?.status)
+    } else if (!error.response) {
+      console.error('[Courier] 网络错误：无法连接到后端服务')
+    }
+    return Promise.reject(error)
+  }
+)
+
 export interface StatusResponse {
   version: string
   uptime_secs: number

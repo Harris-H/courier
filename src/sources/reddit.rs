@@ -39,13 +39,12 @@ pub struct RedditSource {
 }
 
 impl RedditSource {
-    pub fn new(config: RedditConfig) -> Self {
+    pub fn new(config: RedditConfig) -> anyhow::Result<Self> {
         let client = Client::builder()
             .user_agent("courier-bot/0.1.0")
-            .build()
-            .expect("Failed to create HTTP client");
+            .build()?;
 
-        Self { client, config }
+        Ok(Self { client, config })
     }
 }
 

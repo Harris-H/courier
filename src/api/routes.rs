@@ -344,7 +344,7 @@ pub async fn get_config(State(state): State<Arc<AppState>>) -> Json<ConfigOvervi
     Json(ConfigOverview {
         log_level: config.general.log_level.clone(),
         llm_model,
-        llm_api_base: config.llm.api_base.clone(),
+        llm_api_base: mask_sensitive_url(&config.llm.api_base),
         sources: SourcesStatus {
             hackernews: config.sources.hackernews.enabled,
             reddit: config.sources.reddit.enabled,
@@ -355,8 +355,25 @@ pub async fn get_config(State(state): State<Arc<AppState>>) -> Json<ConfigOvervi
             feishu: config.channels.feishu.enabled,
             email: config.channels.email.enabled,
         },
-        feishu_webhook_url: config.channels.feishu.webhook_url.clone(),
+        feishu_webhook_url: mask_sensitive_url(&config.channels.feishu.webhook_url),
     })
+}
+
+/// Mask sensitive URLs, keeping only the domain visible
+fn mask_sensitive_url(url: &str) -> String {
+    if url.is_empty() {
+        return String::new();
+    }
+    match url::Url::parse(url) {
+        Ok(parsed) => {
+            if let Some(host) = parsed.host_str() {
+                format!("{}://{}/*****", parsed.scheme(), host)
+            } else {
+                "***configured***".to_string()
+            }
+        }
+        Err(_) => "***configured***".to_string(),
+    }
 }
 
 #[derive(Serialize)]
