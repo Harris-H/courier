@@ -86,8 +86,8 @@ pub async fn run_task(
         let record = match &result {
             Ok(stats) => {
                 tracing::info!(
-                    "✅ Manual task '{}' completed in {}ms ({} articles)",
-                    name, duration_ms, stats.articles_fetched
+                    "✅ Manual task '{}' completed in {}ms ({} articles, {} chars)",
+                    name, duration_ms, stats.articles_fetched, stats.digest_length
                 );
                 crate::scheduler::ExecutionRecord {
                     task_name: name.clone(),

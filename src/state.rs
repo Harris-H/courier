@@ -17,6 +17,7 @@ pub struct AppState {
     pub config_path: String,
     pub sources: Vec<Arc<dyn Source>>,
     pub channels: Vec<Arc<dyn Channel>>,
+    #[allow(dead_code)]
     pub llm: Arc<dyn LlmClient>,
     pub tasks: Vec<Arc<DigestTask>>,
     pub schedule_configs: RwLock<Vec<crate::config::ScheduleConfig>>,

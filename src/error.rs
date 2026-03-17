@@ -15,6 +15,7 @@ pub enum CourierError {
     ChannelSend { channel: String, message: String },
 
     #[error("Scheduler error: {0}")]
+    #[allow(dead_code)]
     Scheduler(String),
 
     #[error(transparent)]

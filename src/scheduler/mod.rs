@@ -131,11 +131,6 @@ impl Scheduler {
         info!("📝 Renamed task '{}' → '{}'", old_name, new_name);
         Ok(())
     }
-
-    /// Get recent execution history
-    pub async fn history(&self) -> Vec<ExecutionRecord> {
-        self.history.read().await.clone()
-    }
 }
 
 /// Execute a task and record the result
@@ -153,8 +148,8 @@ async fn record_execution(
     let record = match &result {
         Ok(stats) => {
             info!(
-                "✅ Task '{}' completed in {}ms ({} articles)",
-                task.name, duration_ms, stats.articles_fetched
+                "✅ Task '{}' completed in {}ms ({} articles, {} channels ok, {} failed)",
+                task.name, duration_ms, stats.articles_fetched, stats.channels_sent, stats.channels_failed
             );
             ExecutionRecord {
                 task_name: task.name.clone(),

@@ -36,18 +36,6 @@ impl HackerNewsSource {
             config,
         }
     }
-
-    async fn fetch_item(&self, id: u64) -> Result<HnItem> {
-        let url = format!("{}/item/{}.json", HN_API_BASE, id);
-        let item: HnItem = self
-            .client
-            .get(&url)
-            .send()
-            .await?
-            .json()
-            .await?;
-        Ok(item)
-    }
 }
 
 #[async_trait]

@@ -90,6 +90,7 @@ impl Database {
         Ok(records)
     }
 
+    #[allow(dead_code)]
     pub fn get_record_content(&self, id: i64) -> anyhow::Result<Option<String>> {
         let conn = self.conn.lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
