@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Build frontend
-        run: cd web && npm ci --legacy-peer-deps && npm run build
+        run: cd web && npm ci && npm run build
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
