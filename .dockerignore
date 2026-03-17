@@ -6,3 +6,9 @@ data/
 .git/
 .gitignore
 README.md
+README_CN.md
+config.toml
+config.example.toml
+*.tar
+*.tar.gz
+.github/

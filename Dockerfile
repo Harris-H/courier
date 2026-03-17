@@ -1,5 +1,7 @@
 # Backend build stage
-FROM docker.1ms.run/rust:1.94-slim-bookworm AS builder
+ARG RUST_IMAGE=docker.1ms.run/rust:1.94-slim-bookworm
+ARG DEBIAN_IMAGE=docker.1ms.run/debian:bookworm-slim
+FROM ${RUST_IMAGE} AS builder
 WORKDIR /build
 
 # Use China crates.io mirror (USTC)
@@ -11,7 +13,7 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && \
     cargo build --release
 
 # Runtime stage
-FROM docker.1ms.run/debian:bookworm-slim
+FROM ${DEBIAN_IMAGE}
 
 RUN apt-get update && \
     apt-get install -y ca-certificates && \
