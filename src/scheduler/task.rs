@@ -58,14 +58,10 @@ impl DigestTask {
         let all_articles = self.fetch_all_sources().await;
 
         if all_articles.is_empty() {
-            warn!("No articles fetched for '{}', skipping", self.name);
-            return Ok(TaskStats {
-                articles_fetched: 0,
-                digest_length: 0,
-                digest_content: String::new(),
-                channels_sent: 0,
-                channels_failed: 0,
-            });
+            return Err(anyhow::anyhow!(
+                "No articles fetched for '{}': all sources returned empty (possibly due to network issues)",
+                self.name
+            ));
         }
 
         info!("Collected {} articles total", all_articles.len());
