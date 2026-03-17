@@ -12,6 +12,7 @@
 - ⏰ **Cron Scheduling**: Flexible cron expression configuration
 - 💬 **Chat Mode**: Interactive conversations via Telegram bot
 - 🖥️ **Web Dashboard**: Vue.js-based management panel with real-time status
+- 🔒 **Security**: Optional API key authentication, sensitive data masking, input validation
 
 ## Architecture
 
@@ -93,14 +94,27 @@ See [config.example.toml](./config.example.toml) for all available options.
 - **Channels**: Telegram bot token, Feishu webhook, Email SMTP
 - **Schedules**: Multiple cron jobs with different source/channel combinations
 
+### Security
+
+Courier supports optional API key authentication for the dashboard. Add the following to your `config.toml`:
+
+```toml
+[general]
+api_key = "your-secret-api-key"
+```
+
+When configured, all API requests must include a `Authorization: Bearer <api_key>` header. If `api_key` is not set or empty, the dashboard is accessible without authentication.
+
+Sensitive information (webhook URLs, API endpoints) is automatically masked in API responses, showing only the domain (e.g., `https://example.com/*****`).
+
 ## Dashboard
 
 The web dashboard provides:
 
 - 📊 **Overview**: Uptime, task count, success rate
-- ⏰ **Task Management**: Edit schedules, rename tasks, trigger manual runs
+- ⏰ **Task Management**: Edit schedules, rename tasks, trigger manual runs with input validation
 - 📋 **Execution History**: View past digests with expandable content
-- ⚙️ **Configuration**: Switch LLM models, update channel settings
+- ⚙️ **Configuration**: Switch LLM models, update channel settings with form validation
 
 ## Deployment
 
