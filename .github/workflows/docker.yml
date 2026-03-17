@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: registry.cn-hangzhou.aliyuncs.com
   IMAGE: registry.cn-hangzhou.aliyuncs.com/top-herio/herio
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
