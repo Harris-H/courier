@@ -15,6 +15,7 @@ use anyhow::Result;
 use tokio::sync::RwLock;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 use channels::{email::EmailChannel, feishu::FeishuChannel, telegram::TelegramChannel, Channel};
 use chat::handler::ChatHandler;
@@ -37,19 +38,22 @@ async fn main() -> Result<()> {
     let log_dir = std::path::Path::new(&config.general.data_dir).join("logs");
     std::fs::create_dir_all(&log_dir)?;
     let file_appender = tracing_appender::rolling::daily(&log_dir, "courier.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking_file, _guard) = tracing_appender::non_blocking(file_appender);
+
+    // Write logs to both stdout and file
+    let combined_writer = std::io::stdout.and(non_blocking_file);
 
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("courier=info,warn")),
         )
-        .with_writer(non_blocking)
+        .with_writer(combined_writer)
         .with_ansi(false)
         .init();
 
     info!("🚀 Courier starting...");
-    println!("📬 Courier started. Logs are written to: {}", log_dir.display());
+    info!("📂 Logs are also written to: {}", log_dir.display());
 
     // Create data directory
     std::fs::create_dir_all(&config.general.data_dir)?;
