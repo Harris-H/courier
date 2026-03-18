@@ -35,6 +35,7 @@ export interface TaskInfo {
   channels: string[]
   run_on_start: boolean
   max_retries: number
+  enabled: boolean
 }
 
 export interface HistoryEntry {
@@ -85,11 +86,17 @@ export interface UpdateScheduleRequest {
   max_retries?: number
 }
 
+export interface ToggleTaskRequest {
+  enabled: boolean
+}
+
 export const getStatus = () => api.get<StatusResponse>('/status')
 export const getTasks = () => api.get<TaskInfo[]>('/tasks')
 export const runTask = (name: string) => api.post(`/tasks/${name}/run`)
 export const updateTaskSchedule = (name: string, data: UpdateScheduleRequest) =>
   api.put<UpdateConfigResponse>(`/tasks/${name}/schedule`, data)
+export const toggleTask = (name: string, data: ToggleTaskRequest) =>
+  api.put<UpdateConfigResponse>(`/tasks/${name}/toggle`, data)
 export const getHistory = () => api.get<HistoryEntry[]>('/history')
 export const getHistoryContent = (index: number) =>
   api.get<HistoryContentResponse>(`/history/${index}/content`)

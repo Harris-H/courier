@@ -98,7 +98,14 @@ async fn main() -> Result<()> {
 
     // Build tasks
     let mut tasks: Vec<Arc<DigestTask>> = Vec::new();
+    let mut enabled_configs: Vec<&config::ScheduleConfig> = Vec::new();
+
     for schedule_config in &config.schedules {
+        if schedule_config.enabled == Some(false) {
+            info!("⏸ Schedule '{}' is disabled, skipping", schedule_config.name);
+            continue;
+        }
+
         let task_sources: Vec<Arc<dyn Source>> = schedule_config
             .sources
             .iter()
@@ -125,6 +132,7 @@ async fn main() -> Result<()> {
             llm.clone(),
             task_channels,
         )));
+        enabled_configs.push(schedule_config);
     }
 
     // Setup scheduler
@@ -132,7 +140,7 @@ async fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Invalid timezone '{}': {}", config.general.timezone, e))?;
     info!("🕐 Scheduler timezone: {}", timezone);
     let sched = Arc::new(Scheduler::new(history.clone(), db.clone(), timezone).await?);
-    for (task, schedule_config) in tasks.iter().zip(config.schedules.iter()) {
+    for (task, schedule_config) in tasks.iter().zip(enabled_configs.iter()) {
         sched.add_task(task.clone(), schedule_config).await?;
     }
     sched.start().await?;

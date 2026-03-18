@@ -121,6 +121,15 @@ impl Scheduler {
         Ok(())
     }
 
+    /// Remove a task from the scheduler (disable it)
+    pub async fn remove_task(&self, task_name: &str) -> Result<()> {
+        if let Some(uuid) = self.job_ids.write().await.remove(task_name) {
+            self.inner.remove(&uuid).await?;
+            info!("⏸ Removed task '{}' from scheduler", task_name);
+        }
+        Ok(())
+    }
+
     /// Rename a task's key in job_ids and tasks maps
     pub async fn rename_task(&self, old_name: &str, new_name: &str) -> Result<()> {
         let mut job_ids = self.job_ids.write().await;

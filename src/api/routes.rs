@@ -37,6 +37,7 @@ pub struct TaskInfo {
     pub channels: Vec<String>,
     pub run_on_start: bool,
     pub max_retries: u32,
+    pub enabled: bool,
 }
 
 pub async fn list_tasks(State(state): State<Arc<AppState>>) -> Json<Vec<TaskInfo>> {
@@ -50,6 +51,7 @@ pub async fn list_tasks(State(state): State<Arc<AppState>>) -> Json<Vec<TaskInfo
             channels: c.channels.clone(),
             run_on_start: c.run_on_start.unwrap_or(false),
             max_retries: c.max_retries.unwrap_or(2),
+            enabled: c.enabled.unwrap_or(true),
         })
         .collect();
     Json(tasks)
@@ -512,6 +514,85 @@ pub async fn update_feishu_config(
 #[derive(Deserialize)]
 pub struct UpdateLlmRequest {
     pub model: String,
+}
+
+#[derive(Deserialize)]
+pub struct ToggleTaskRequest {
+    pub enabled: bool,
+}
+
+pub async fn toggle_task(
+    State(state): State<Arc<AppState>>,
+    Path(name): Path<String>,
+    Json(req): Json<ToggleTaskRequest>,
+) -> Result<Json<UpdateConfigResponse>, StatusCode> {
+    // Validate the task exists
+    {
+        let configs = state.schedule_configs.read().await;
+        if !configs.iter().any(|s| s.name == name) {
+            return Err(StatusCode::NOT_FOUND);
+        }
+    }
+
+    // Update config file
+    let content = std::fs::read_to_string(&state.config_path).map_err(|e| {
+        tracing::error!("Failed to read config file: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut doc: toml::Value = content.parse().map_err(|e| {
+        tracing::error!("Failed to parse config: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if let Some(schedules) = doc.get_mut("schedules").and_then(|s| s.as_array_mut()) {
+        for schedule in schedules.iter_mut() {
+            if let Some(table) = schedule.as_table_mut() {
+                if table.get("name").and_then(|n| n.as_str()) == Some(&name) {
+                    table.insert("enabled".to_string(), toml::Value::Boolean(req.enabled));
+                }
+            }
+        }
+    }
+
+    let new_content = toml::to_string_pretty(&doc).map_err(|e| {
+        tracing::error!("Failed to serialize config: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    std::fs::write(&state.config_path, &new_content).map_err(|e| {
+        tracing::error!("Failed to write config file: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Update in-memory schedule configs
+    {
+        let mut configs = state.schedule_configs.write().await;
+        if let Some(cfg) = configs.iter_mut().find(|s| s.name == name) {
+            cfg.enabled = Some(req.enabled);
+        }
+    }
+
+    // Enable/disable in scheduler
+    if req.enabled {
+        tracing::info!("✅ Task '{}' enabled (effective after restart)", name);
+    } else {
+        if let Err(e) = state.scheduler.remove_task(&name).await {
+            tracing::warn!("Could not remove task from scheduler: {}", e);
+        }
+        tracing::info!("⏸ Task '{}' disabled", name);
+    }
+
+    let message = if req.enabled {
+        format!("任务 '{}' 已启用（重启后生效）", name)
+    } else {
+        format!("任务 '{}' 已禁用", name)
+    };
+
+    Ok(Json(UpdateConfigResponse {
+        success: true,
+        message,
+    }))
 }
 
 pub async fn update_llm_config(

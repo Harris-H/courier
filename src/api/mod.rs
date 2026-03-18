@@ -54,6 +54,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/tasks", get(routes::list_tasks))
         .route("/api/tasks/{name}/run", post(routes::run_task))
         .route("/api/tasks/{name}/schedule", put(routes::update_task_schedule))
+        .route("/api/tasks/{name}/toggle", put(routes::toggle_task))
         .route("/api/history", get(routes::get_history))
         .route("/api/history/clear", delete(routes::clear_history))
         .route("/api/history/batch", post(routes::delete_history))

@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useToastStore } from '../stores/toast'
-import { runTask, updateTaskSchedule } from '../api'
+import { runTask, updateTaskSchedule, toggleTask } from '../api'
 
 const store = useAppStore()
 const toast = useToastStore()
@@ -87,6 +87,21 @@ async function saveEdit(originalName: string) {
   }
 }
 
+async function handleToggle(name: string, currentEnabled: boolean) {
+  try {
+    const res = await toggleTask(name, { enabled: !currentEnabled })
+    if (res.data.success) {
+      toast.success(res.data.message)
+      await store.fetchTasks()
+    } else {
+      toast.error(res.data.message)
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '未知错误'
+    toast.error(`切换失败：${msg}`)
+  }
+}
+
 function cancelEdit() {
   editingTask.value = null
   editErrors.value = {}
@@ -105,7 +120,10 @@ function cancelEdit() {
       <div
         v-for="task in store.tasks"
         :key="task.name"
-        class="bg-white rounded-xl p-5 border border-gray-200 shadow-sm"
+        :class="[
+          'bg-white rounded-xl p-5 border shadow-sm',
+          task.enabled ? 'border-gray-200' : 'border-gray-200 opacity-60'
+        ]"
       >
         <!-- Display Mode -->
         <template v-if="editingTask !== task.name">
@@ -115,6 +133,21 @@ function cancelEdit() {
               <p class="text-sm text-gray-400 mt-1 font-mono">计划表：{{ task.cron }}</p>
             </div>
             <div class="flex items-center gap-2">
+              <button
+                @click="handleToggle(task.name, task.enabled)"
+                :class="[
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
+                  task.enabled ? 'bg-blue-600' : 'bg-gray-300'
+                ]"
+                :title="task.enabled ? '点击禁用' : '点击启用'"
+              >
+                <span
+                  :class="[
+                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                    task.enabled ? 'translate-x-6' : 'translate-x-1'
+                  ]"
+                />
+              </button>
               <button
                 @click="startEdit(task.name, task.cron, task.max_retries)"
                 class="px-3 py-2 text-sm text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
