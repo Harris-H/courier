@@ -118,7 +118,10 @@ async fn main() -> Result<()> {
     }
 
     // Setup scheduler
-    let sched = Arc::new(Scheduler::new(history.clone(), db.clone()).await?);
+    let timezone: chrono_tz::Tz = config.general.timezone.parse()
+        .map_err(|e| anyhow::anyhow!("Invalid timezone '{}': {}", config.general.timezone, e))?;
+    info!("🕐 Scheduler timezone: {}", timezone);
+    let sched = Arc::new(Scheduler::new(history.clone(), db.clone(), timezone).await?);
     for (task, schedule_config) in tasks.iter().zip(config.schedules.iter()) {
         sched.add_task(task.clone(), schedule_config).await?;
     }

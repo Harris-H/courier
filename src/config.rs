@@ -23,6 +23,9 @@ pub struct GeneralConfig {
     pub api_port: Option<u16>,
     /// Optional API key for dashboard authentication
     pub api_key: Option<String>,
+    /// Timezone for cron schedules (e.g. "Asia/Shanghai"), defaults to "UTC"
+    #[serde(default = "default_timezone")]
+    pub timezone: String,
 }
 
 fn default_log_level() -> String {
@@ -31,6 +34,10 @@ fn default_log_level() -> String {
 
 fn default_data_dir() -> String {
     "./data".to_string()
+}
+
+fn default_timezone() -> String {
+    "UTC".to_string()
 }
 
 #[derive(Debug, Deserialize, Clone)]

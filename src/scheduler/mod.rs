@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
+use chrono_tz::Tz;
 use tokio::sync::RwLock;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info};
@@ -30,10 +31,11 @@ pub struct Scheduler {
     db: Arc<Database>,
     job_ids: RwLock<HashMap<String, uuid::Uuid>>,
     tasks: RwLock<HashMap<String, Arc<DigestTask>>>,
+    timezone: Tz,
 }
 
 impl Scheduler {
-    pub async fn new(history: Arc<RwLock<Vec<ExecutionRecord>>>, db: Arc<Database>) -> Result<Self> {
+    pub async fn new(history: Arc<RwLock<Vec<ExecutionRecord>>>, db: Arc<Database>, timezone: Tz) -> Result<Self> {
         let inner = JobScheduler::new().await?;
         Ok(Self {
             inner,
@@ -41,6 +43,7 @@ impl Scheduler {
             db,
             job_ids: RwLock::new(HashMap::new()),
             tasks: RwLock::new(HashMap::new()),
+            timezone,
         })
     }
 
@@ -66,7 +69,7 @@ impl Scheduler {
         // Store task reference before moving into closure
         let task_for_store = task.clone();
 
-        let job = Job::new_async(cron.as_str(), move |_uuid, _lock| {
+        let job = Job::new_async_tz(cron.as_str(), self.timezone, move |_uuid, _lock| {
             let task = task.clone();
             let history = history.clone();
             let db = db.clone();
@@ -78,7 +81,7 @@ impl Scheduler {
         let uuid = self.inner.add(job).await?;
         self.job_ids.write().await.insert(name.clone(), uuid);
         self.tasks.write().await.insert(name.clone(), task_for_store);
-        info!("📅 Scheduled '{}' → cron '{}'", name, cron);
+        info!("📅 Scheduled '{}' → cron '{}' (timezone: {})", name, cron, self.timezone);
         Ok(())
     }
 
@@ -103,7 +106,7 @@ impl Scheduler {
         let history = self.history.clone();
         let db = self.db.clone();
 
-        let job = Job::new_async(new_cron, move |_uuid, _lock| {
+        let job = Job::new_async_tz(new_cron, self.timezone, move |_uuid, _lock| {
             let task = task.clone();
             let history = history.clone();
             let db = db.clone();
