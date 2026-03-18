@@ -104,3 +104,11 @@ run_on_start = false
 max_retries = 2
 # 摘要模板 (可选)
 # prompt_template = ""
+
+# 支持多个定时任务，使用不同数据源/通道/时间
+# [[schedules]]
+# name = "每日 Reddit AI 精选"
+# cron = "0 0 18 * * *"
+# sources = ["reddit"]
+# channels = ["feishu"]
+# max_retries = 2
