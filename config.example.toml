@@ -35,8 +35,17 @@ top_n = 10
 [sources.rss]
 enabled = false
 # RSS feed 列表
+# 可直接使用 RSSHub 生成的 feed URL（docker-compose 部署时用 http://rsshub:1200）
 feeds = [
     # { name = "Rust Blog", url = "https://blog.rust-lang.org/feed.xml" },
+    # --- RSSHub 示例 (需部署 RSSHub, 参见 docker-compose.yml) ---
+    # { name = "Hacker News", url = "http://rsshub:1200/hackernews" },
+    # { name = "GitHub Trending", url = "http://rsshub:1200/github/trending/daily/any/en" },
+    # { name = "Reddit ML", url = "http://rsshub:1200/reddit/subreddit/MachineLearning" },
+    # { name = "Product Hunt", url = "http://rsshub:1200/producthunt/today" },
+    # { name = "V2EX Hot", url = "http://rsshub:1200/v2ex/topics/hot" },
+    # { name = "36kr News", url = "http://rsshub:1200/36kr/news/latest" },
+    # 更多路由: https://docs.rsshub.app/zh/routes/
 ]
 
 # ============================================================

@@ -107,3 +107,37 @@ docker compose pull && docker compose up -d
 - 默认端口 9090，可在 `docker-compose.yml` 中修改映射
 - 时区设置：`docker-compose.yml` 中 `TZ=Asia/Shanghai` 控制日志时区；`config.toml` 中 `timezone = "Asia/Shanghai"` 控制 cron 调度时区，两者需保持一致
 - 如果服务器在火山引擎 VPC 内，可将 docker-compose.yml 中的 registry 改为 `registry-vpc.cn-hangzhou.aliyuncs.com` 加速拉取
+
+---
+
+## RSSHub 集成（可选）
+
+`docker-compose.yml` 已包含 [RSSHub](https://github.com/DIYgod/RSSHub) 服务，可作为 Courier 的通用 RSS 数据源。
+
+### 启用 RSSHub
+
+RSSHub 会随 `docker compose up -d` 自动启动，监听 `1200` 端口。
+
+### 在 Courier 中使用
+
+在 `config.toml` 的 `[sources.rss]` 中添加 RSSHub 路由：
+
+```toml
+[sources.rss]
+enabled = true
+feeds = [
+    { name = "GitHub Trending", url = "http://rsshub:1200/github/trending/daily/any/en" },
+    { name = "Product Hunt", url = "http://rsshub:1200/producthunt/today" },
+    { name = "V2EX Hot", url = "http://rsshub:1200/v2ex/topics/hot" },
+]
+```
+
+> 💡 Docker 内网通信使用 `http://rsshub:1200`（服务名），无需暴露端口。
+> 📖 完整路由列表：https://docs.rsshub.app/zh/routes/
+
+### 验证 RSSHub
+
+```bash
+# 在服务器上测试 RSSHub 是否正常
+curl http://localhost:1200/github/trending/daily/any/en
+```

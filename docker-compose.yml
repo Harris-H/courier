@@ -10,6 +10,18 @@ services:
       - courier_data:/app/data
     environment:
       - TZ=Asia/Shanghai
+    depends_on:
+      - rsshub
+
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: rsshub
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      - TZ=Asia/Shanghai
+      - CACHE_EXPIRE=3600
 
 volumes:
   courier_data:
