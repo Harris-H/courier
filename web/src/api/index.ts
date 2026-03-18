@@ -93,6 +93,10 @@ export const updateTaskSchedule = (name: string, data: UpdateScheduleRequest) =>
 export const getHistory = () => api.get<HistoryEntry[]>('/history')
 export const getHistoryContent = (index: number) =>
   api.get<HistoryContentResponse>(`/history/${index}/content`)
+export const deleteHistoryBatch = (timestamps: string[]) =>
+  api.post<UpdateConfigResponse>('/history/batch', { timestamps })
+export const clearAllHistory = () =>
+  api.delete<UpdateConfigResponse>('/history/clear')
 export const getConfig = () => api.get<ConfigOverview>('/config')
 export const getSources = () => api.get<SourceInfo[]>('/sources')
 export const updateFeishuConfig = (data: FeishuConfigUpdate) =>

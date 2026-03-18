@@ -7,7 +7,7 @@ use axum::{
     http::StatusCode,
     middleware::{self, Next},
     response::Response,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
@@ -55,6 +55,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/tasks/{name}/run", post(routes::run_task))
         .route("/api/tasks/{name}/schedule", put(routes::update_task_schedule))
         .route("/api/history", get(routes::get_history))
+        .route("/api/history/clear", delete(routes::clear_history))
+        .route("/api/history/batch", post(routes::delete_history))
         .route("/api/history/{index}/content", get(routes::get_history_content))
         .route("/api/config", get(routes::get_config))
         .route("/api/config/feishu", put(routes::update_feishu_config))

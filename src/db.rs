@@ -103,4 +103,24 @@ impl Database {
             .ok();
         Ok(content)
     }
+
+    pub fn delete_history_by_timestamps(&self, timestamps: &[String]) -> anyhow::Result<usize> {
+        let conn = self.conn.lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
+        let placeholders: Vec<String> = timestamps.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let sql = format!(
+            "DELETE FROM execution_history WHERE executed_at IN ({})",
+            placeholders.join(", ")
+        );
+        let params: Vec<&dyn rusqlite::types::ToSql> = timestamps.iter().map(|t| t as &dyn rusqlite::types::ToSql).collect();
+        let deleted = conn.execute(&sql, params.as_slice())?;
+        Ok(deleted)
+    }
+
+    pub fn clear_all_history(&self) -> anyhow::Result<usize> {
+        let conn = self.conn.lock()
+            .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
+        let deleted = conn.execute("DELETE FROM execution_history", [])?;
+        Ok(deleted)
+    }
 }

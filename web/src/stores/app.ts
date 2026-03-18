@@ -53,5 +53,25 @@ export const useAppStore = defineStore('app', () => {
     loading.value = false
   }
 
-  return { status, tasks, history, config, loading, error, fetchStatus, fetchTasks, fetchHistory, fetchConfig, fetchAll }
+  async function deleteHistoryItems(timestamps: string[]) {
+    try {
+      const { deleteHistoryBatch } = await import('../api')
+      await deleteHistoryBatch(timestamps)
+      await fetchHistory()
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '删除记录失败'
+    }
+  }
+
+  async function clearHistory() {
+    try {
+      const { clearAllHistory } = await import('../api')
+      await clearAllHistory()
+      history.value = []
+    } catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : '清空历史失败'
+    }
+  }
+
+  return { status, tasks, history, config, loading, error, fetchStatus, fetchTasks, fetchHistory, fetchConfig, fetchAll, deleteHistoryItems, clearHistory }
 })

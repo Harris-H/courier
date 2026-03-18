@@ -307,6 +307,62 @@ pub async fn get_history_content(
     }))
 }
 
+#[derive(Deserialize)]
+pub struct BatchDeleteRequest {
+    pub timestamps: Vec<String>,
+}
+
+pub async fn delete_history(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<BatchDeleteRequest>,
+) -> Result<Json<UpdateConfigResponse>, StatusCode> {
+    if req.timestamps.is_empty() {
+        return Ok(Json(UpdateConfigResponse {
+            success: false,
+            message: "没有选择要删除的记录".to_string(),
+        }));
+    }
+
+    // Delete from database
+    let deleted = state.db.delete_history_by_timestamps(&req.timestamps).map_err(|e| {
+        tracing::error!("Failed to delete history: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Remove from in-memory history
+    {
+        let mut hist = state.scheduler_history.write().await;
+        hist.retain(|r| !req.timestamps.contains(&r.executed_at.to_rfc3339()));
+    }
+
+    tracing::info!("Deleted {} history record(s)", deleted);
+    Ok(Json(UpdateConfigResponse {
+        success: true,
+        message: format!("已删除 {} 条记录", deleted),
+    }))
+}
+
+pub async fn clear_history(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<UpdateConfigResponse>, StatusCode> {
+    let deleted = state.db.clear_all_history().map_err(|e| {
+        tracing::error!("Failed to clear history: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Clear in-memory history
+    {
+        let mut hist = state.scheduler_history.write().await;
+        hist.clear();
+    }
+
+    tracing::info!("Cleared all history ({} records)", deleted);
+    Ok(Json(UpdateConfigResponse {
+        success: true,
+        message: format!("已清空 {} 条记录", deleted),
+    }))
+}
+
 #[derive(Serialize)]
 pub struct ConfigOverview {
     pub log_level: String,
