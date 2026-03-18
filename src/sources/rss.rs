@@ -8,14 +8,29 @@ use crate::error::{CourierError, Result};
 
 pub struct RssSource {
     client: Client,
-    config: RssConfig,
+    feeds: Vec<RssFeedEntry>,
+    source_name: String,
 }
 
+use crate::config::RssFeedEntry;
+
 impl RssSource {
+    #[allow(dead_code)]
     pub fn new(config: RssConfig) -> Self {
         Self {
             client: Client::new(),
-            config,
+            feeds: config.feeds,
+            source_name: "rss".to_string(),
+        }
+    }
+
+    /// Create a source for a single RSS feed (e.g. "rss:V2EX 热门")
+    pub fn new_single(feed: RssFeedEntry) -> Self {
+        let name = format!("rss:{}", feed.name);
+        Self {
+            client: Client::new(),
+            feeds: vec![feed],
+            source_name: name,
         }
     }
 }
@@ -23,13 +38,13 @@ impl RssSource {
 #[async_trait]
 impl Source for RssSource {
     fn name(&self) -> &str {
-        "rss"
+        &self.source_name
     }
 
     async fn fetch(&self) -> Result<Vec<Article>> {
         let mut articles = Vec::new();
 
-        for feed_entry in &self.config.feeds {
+        for feed_entry in &self.feeds {
             debug!("Fetching RSS: {}", feed_entry.name);
 
             let body = self

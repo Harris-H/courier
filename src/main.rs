@@ -201,7 +201,9 @@ fn build_sources(config: &AppConfig) -> Vec<Arc<dyn Source>> {
     }
 
     if config.sources.rss.enabled {
-        sources.push(Arc::new(RssSource::new(config.sources.rss.clone())));
+        for feed in &config.sources.rss.feeds {
+            sources.push(Arc::new(RssSource::new_single(feed.clone())));
+        }
     }
 
     sources
