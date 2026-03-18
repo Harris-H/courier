@@ -110,144 +110,142 @@ function cancelEdit() {
 
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">定时任务</h2>
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">定时任务</h2>
 
     <div v-if="store.tasks.length === 0" class="text-gray-400 text-center py-12">
       未配置任何任务，请在 config.toml 中添加计划。
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
       <div
         v-for="task in store.tasks"
         :key="task.name"
-        :class="[
-          'bg-white rounded-xl p-5 border shadow-sm',
-          task.enabled ? 'border-gray-200' : 'border-gray-200 opacity-60'
-        ]"
+        :class="[task.enabled ? '' : 'opacity-50']"
       >
         <!-- Display Mode -->
         <template v-if="editingTask !== task.name">
-          <div class="flex items-start justify-between">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-800">{{ task.name }}</h3>
-              <p class="text-sm text-gray-400 mt-1 font-mono">计划表：{{ task.cron }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                @click="handleToggle(task.name, task.enabled)"
+          <div class="flex items-center gap-3 px-4 py-3">
+            <!-- Toggle -->
+            <button
+              @click="handleToggle(task.name, task.enabled)"
+              :class="[
+                'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors cursor-pointer',
+                task.enabled ? 'bg-blue-600' : 'bg-gray-300'
+              ]"
+              :title="task.enabled ? '点击禁用' : '点击启用'"
+            >
+              <span
                 :class="[
-                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
-                  task.enabled ? 'bg-blue-600' : 'bg-gray-300'
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                  task.enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
                 ]"
-                :title="task.enabled ? '点击禁用' : '点击启用'"
-              >
-                <span
-                  :class="[
-                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                    task.enabled ? 'translate-x-6' : 'translate-x-1'
-                  ]"
-                />
-              </button>
+              />
+            </button>
+
+            <!-- Task info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-semibold text-sm text-gray-800 truncate">{{ task.name }}</span>
+                <code class="text-xs text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded font-mono">{{ task.cron }}</code>
+                <span v-for="s in task.sources" :key="s"
+                  class="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[11px] leading-tight"
+                >{{ s }}</span>
+                <span v-for="c in task.channels" :key="c"
+                  class="inline-block bg-green-50 text-green-600 px-1.5 py-0.5 rounded text-[11px] leading-tight"
+                >{{ c }}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-1.5 flex-shrink-0">
               <button
                 @click="startEdit(task.name, task.cron, task.max_retries)"
-                class="px-3 py-2 text-sm text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer"
+                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
                 title="编辑任务"
-              >✏️ 编辑</button>
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
               <button
                 @click="handleRunTask(task.name)"
                 :disabled="runningTask === task.name"
-                class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                :class="[
+                  'px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer',
+                  runningTask === task.name
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                ]"
               >
-                {{ runningTask === task.name ? '运行中...' : '▶ 立即运行' }}
+                {{ runningTask === task.name ? '运行中...' : '▶ 运行' }}
               </button>
-            </div>
-          </div>
-
-          <div class="mt-4 flex flex-wrap gap-4 text-sm">
-            <div>
-              <span class="text-gray-400">数据源：</span>
-              <span v-for="s in task.sources" :key="s"
-                class="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1"
-              >{{ s }}</span>
-            </div>
-            <div>
-              <span class="text-gray-400">推送渠道：</span>
-              <span v-for="c in task.channels" :key="c"
-                class="inline-block bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs mr-1"
-              >{{ c }}</span>
-            </div>
-            <div class="text-gray-400">
-              重试次数：{{ task.max_retries }} | 自动启动：{{ task.run_on_start ? '是' : '否' }}
             </div>
           </div>
         </template>
 
         <!-- Edit Mode -->
         <template v-else>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-blue-600">编辑任务</h3>
-              <div class="flex items-center gap-2">
+          <div class="px-4 py-3 bg-blue-50/30">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-semibold text-blue-600">编辑任务</span>
+              <div class="flex items-center gap-1.5">
                 <button @click="saveEdit(task.name)"
-                  class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
-                  💾 保存
+                  class="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
+                  保存
                 </button>
                 <button @click="cancelEdit"
-                  class="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer">
+                  class="px-3 py-1 text-xs font-medium bg-white text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors cursor-pointer">
                   取消
                 </button>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label class="block text-sm text-gray-500 mb-1">任务名称</label>
+                <label class="block text-xs text-gray-500 mb-1">任务名称</label>
                 <input
                   v-model="editName"
                   type="text"
-                  :class="['w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.name ? 'border-red-400' : 'border-gray-300']"
+                  :class="['w-full px-2.5 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.name ? 'border-red-400' : 'border-gray-300']"
                   placeholder="输入任务名称"
                 />
                 <p v-if="editErrors.name" class="text-xs text-red-500 mt-1">{{ editErrors.name }}</p>
               </div>
               <div>
-                <label class="block text-sm text-gray-500 mb-1">Cron 表达式</label>
+                <label class="block text-xs text-gray-500 mb-1">Cron 表达式</label>
                 <input
                   v-model="editCron"
                   type="text"
-                  :class="['w-full px-3 py-2 text-sm font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.cron ? 'border-red-400' : 'border-gray-300']"
+                  :class="['w-full px-2.5 py-1.5 text-sm font-mono border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.cron ? 'border-red-400' : 'border-gray-300']"
                   placeholder="0 0 10 * * *"
                 />
                 <p v-if="editErrors.cron" class="text-xs text-red-500 mt-1">{{ editErrors.cron }}</p>
               </div>
               <div>
-                <label class="block text-sm text-gray-500 mb-1">最大重试次数</label>
+                <label class="block text-xs text-gray-500 mb-1">最大重试次数</label>
                 <input
                   v-model.number="editRetries"
                   type="number"
                   min="0"
                   max="10"
-                  :class="['w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.retries ? 'border-red-400' : 'border-gray-300']"
+                  :class="['w-full px-2.5 py-1.5 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500', editErrors.retries ? 'border-red-400' : 'border-gray-300']"
                 />
                 <p v-if="editErrors.retries" class="text-xs text-red-500 mt-1">{{ editErrors.retries }}</p>
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-4 text-sm pt-2 border-t border-gray-100">
+            <div class="flex flex-wrap gap-3 text-xs mt-3 pt-2 border-t border-blue-100/50">
               <div>
                 <span class="text-gray-400">数据源：</span>
                 <span v-for="s in task.sources" :key="s"
-                  class="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs mr-1"
+                  class="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[11px] mr-1"
                 >{{ s }}</span>
               </div>
               <div>
                 <span class="text-gray-400">推送渠道：</span>
                 <span v-for="c in task.channels" :key="c"
-                  class="inline-block bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs mr-1"
+                  class="inline-block bg-green-50 text-green-600 px-1.5 py-0.5 rounded text-[11px] mr-1"
                 >{{ c }}</span>
-              </div>
-              <div class="text-gray-400">
-                自动启动：{{ task.run_on_start ? '是' : '否' }}
               </div>
             </div>
           </div>
