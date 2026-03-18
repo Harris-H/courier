@@ -17,6 +17,15 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
+/// Custom timer that outputs timestamps in local timezone (respects TZ env var)
+struct LocalTimer;
+
+impl tracing_subscriber::fmt::time::FormatTime for LocalTimer {
+    fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
+        write!(w, "{}", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z"))
+    }
+}
+
 use channels::{email::EmailChannel, feishu::FeishuChannel, telegram::TelegramChannel, Channel};
 use chat::handler::ChatHandler;
 use config::AppConfig;
@@ -50,6 +59,7 @@ async fn main() -> Result<()> {
         )
         .with_writer(combined_writer)
         .with_ansi(false)
+        .with_timer(LocalTimer)
         .init();
 
     info!("🚀 Courier starting...");

@@ -94,6 +94,21 @@ docker run -d \
 - **推送渠道 (Channels)**: Telegram Bot Token、飞书 Webhook、邮件 SMTP
 - **定时任务 (Schedules)**: 多个 Cron 任务，可分别配置数据源和推送渠道
 
+### 时区配置
+
+Cron 表达式按 `[general]` 中的 `timezone` 设置解析：
+
+```toml
+[general]
+timezone = "Asia/Shanghai"  # Cron 表达式使用此时区
+```
+
+未设置时默认为 `"UTC"`。设置为 `Asia/Shanghai` 后，`cron = "0 0 10 * * *"` 表示**北京时间上午 10:00** 触发。
+
+日志时间戳同样遵循 Docker 环境中设置的 `TZ` 环境变量。
+
+> **注意：** `timezone` 配置控制 cron 调度时区。`docker-compose.yml` 中的 `TZ` 环境变量控制日志输出时区。请确保两者保持一致。
+
 ### 安全特性
 
 Courier 支持可选的 API 密钥认证。在 `config.toml` 中添加以下配置即可启用：

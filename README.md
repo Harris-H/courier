@@ -94,6 +94,21 @@ See [config.example.toml](./config.example.toml) for all available options.
 - **Channels**: Telegram bot token, Feishu webhook, Email SMTP
 - **Schedules**: Multiple cron jobs with different source/channel combinations
 
+### Timezone
+
+Cron expressions are interpreted according to the `timezone` setting in `[general]`:
+
+```toml
+[general]
+timezone = "Asia/Shanghai"  # Cron expressions use this timezone
+```
+
+If not specified, defaults to `"UTC"`. With the above setting, `cron = "0 0 10 * * *"` triggers at **10:00 AM Beijing time**.
+
+Log timestamps also follow the `TZ` environment variable set in your Docker environment.
+
+> **Note:** The `timezone` config controls cron scheduling. The `TZ` environment variable (set in docker-compose.yml) controls log output timestamps. Make sure both are consistent.
+
 ### Security
 
 Courier supports optional API key authentication for the dashboard. Add the following to your `config.toml`:

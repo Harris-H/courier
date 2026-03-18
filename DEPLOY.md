@@ -105,5 +105,5 @@ docker compose pull && docker compose up -d
 - `config.toml` 中包含 API Key，请确保文件权限安全（`chmod 600 config.toml`）
 - 数据（SQLite + 日志）存储在 Docker volume `courier_data` 中，容器重建后保留
 - 默认端口 9090，可在 `docker-compose.yml` 中修改映射
-- 时区设置为 `Asia/Shanghai`，cron 按北京时间执行
+- 时区设置：`docker-compose.yml` 中 `TZ=Asia/Shanghai` 控制日志时区；`config.toml` 中 `timezone = "Asia/Shanghai"` 控制 cron 调度时区，两者需保持一致
 - 如果服务器在火山引擎 VPC 内，可将 docker-compose.yml 中的 registry 改为 `registry-vpc.cn-hangzhou.aliyuncs.com` 加速拉取
