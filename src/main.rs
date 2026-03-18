@@ -96,16 +96,10 @@ async fn main() -> Result<()> {
         info!("Loaded {} history record(s) from database", hist.len());
     }
 
-    // Build tasks
+    // Build tasks (create ALL tasks including disabled ones for manual runs)
     let mut tasks: Vec<Arc<DigestTask>> = Vec::new();
-    let mut enabled_configs: Vec<&config::ScheduleConfig> = Vec::new();
 
     for schedule_config in &config.schedules {
-        if schedule_config.enabled == Some(false) {
-            info!("⏸ Schedule '{}' is disabled, skipping", schedule_config.name);
-            continue;
-        }
-
         let task_sources: Vec<Arc<dyn Source>> = schedule_config
             .sources
             .iter()
@@ -132,19 +126,25 @@ async fn main() -> Result<()> {
             llm.clone(),
             task_channels,
         )));
-        enabled_configs.push(schedule_config);
     }
 
-    // Setup scheduler
+    // Setup scheduler (only register enabled tasks)
     let timezone: chrono_tz::Tz = config.general.timezone.parse()
         .map_err(|e| anyhow::anyhow!("Invalid timezone '{}': {}", config.general.timezone, e))?;
     info!("🕐 Scheduler timezone: {}", timezone);
     let sched = Arc::new(Scheduler::new(history.clone(), db.clone(), timezone).await?);
-    for (task, schedule_config) in tasks.iter().zip(enabled_configs.iter()) {
+    let mut scheduled_count = 0;
+    for task in &tasks {
+        let schedule_config = config.schedules.iter().find(|s| s.name == task.name).unwrap();
+        if schedule_config.enabled == Some(false) {
+            info!("⏸ Schedule '{}' is disabled, skipping scheduling", schedule_config.name);
+            continue;
+        }
         sched.add_task(task.clone(), schedule_config).await?;
+        scheduled_count += 1;
     }
     sched.start().await?;
-    info!("Scheduler started with {} task(s)", tasks.len());
+    info!("Scheduler started with {} task(s) ({} total, {} disabled)", scheduled_count, tasks.len(), tasks.len() - scheduled_count);
 
     // Build shared app state
     let app_state = Arc::new(AppState {

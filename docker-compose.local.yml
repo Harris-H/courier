@@ -1,6 +1,6 @@
 services:
   courier:
-    image: registry.cn-hangzhou.aliyuncs.com/top-herio/herio:latest
+    image: courier:latest
     container_name: courier
     restart: unless-stopped
     ports:

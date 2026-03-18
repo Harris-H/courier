@@ -575,7 +575,20 @@ pub async fn toggle_task(
 
     // Enable/disable in scheduler
     if req.enabled {
-        tracing::info!("✅ Task '{}' enabled (effective after restart)", name);
+        // Find the task and add to scheduler
+        let schedule_config = {
+            let configs = state.schedule_configs.read().await;
+            configs.iter().find(|s| s.name == name).cloned()
+        };
+        if let Some(cfg) = schedule_config {
+            let task = state.tasks.iter().find(|t| t.name == name).cloned();
+            if let Some(task) = task {
+                if let Err(e) = state.scheduler.add_task(task, &cfg).await {
+                    tracing::warn!("Could not add task to scheduler: {}", e);
+                }
+            }
+        }
+        tracing::info!("✅ Task '{}' enabled", name);
     } else {
         if let Err(e) = state.scheduler.remove_task(&name).await {
             tracing::warn!("Could not remove task from scheduler: {}", e);
@@ -584,7 +597,7 @@ pub async fn toggle_task(
     }
 
     let message = if req.enabled {
-        format!("任务 '{}' 已启用（重启后生效）", name)
+        format!("任务 '{}' 已启用", name)
     } else {
         format!("任务 '{}' 已禁用", name)
     };
