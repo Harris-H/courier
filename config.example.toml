@@ -45,6 +45,14 @@ feeds = [
     # { name = "Product Hunt", url = "http://rsshub:1200/producthunt/today" },
     # { name = "V2EX Hot", url = "http://rsshub:1200/v2ex/topics/hot" },
     # { name = "36kr News", url = "http://rsshub:1200/36kr/news/latest" },
+    # --- Twitter/X 示例 (需配置 TWITTER_AUTH_TOKEN, 参见 docker-compose.yml) ---
+    # { name = "Twitter: Elon Musk", url = "http://rsshub:1200/twitter/user/elonmusk/exclude_rts/true" },
+    # { name = "Twitter: Sam Altman", url = "http://rsshub:1200/twitter/user/sama/exclude_rts/true" },
+    # { name = "Twitter: OpenAI", url = "http://rsshub:1200/twitter/user/OpenAI" },
+    # { name = "Twitter: Andrej Karpathy", url = "http://rsshub:1200/twitter/user/karpathy" },
+    # { name = "Twitter: Yann LeCun", url = "http://rsshub:1200/twitter/user/ylecun" },
+    # { name = "Twitter: Jim Fan", url = "http://rsshub:1200/twitter/user/DrJimFan" },
+    # { name = "Twitter: AI Keyword", url = "http://rsshub:1200/twitter/keyword/AI%20LLM" },
     # 更多路由: https://docs.rsshub.app/zh/routes/
 ]
 
