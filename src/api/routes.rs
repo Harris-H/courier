@@ -138,6 +138,7 @@ pub struct UpdateScheduleRequest {
     pub name: Option<String>,
     pub cron: Option<String>,
     pub max_retries: Option<u32>,
+    pub channels: Option<Vec<String>>,
 }
 
 pub async fn update_task_schedule(
@@ -193,6 +194,11 @@ pub async fn update_task_schedule(
                     if let Some(retries) = req.max_retries {
                         table.insert("max_retries".to_string(), toml::Value::Integer(retries as i64));
                     }
+                    if let Some(channels) = &req.channels {
+                        table.insert("channels".to_string(), toml::Value::Array(
+                            channels.iter().cloned().map(toml::Value::String).collect()
+                        ));
+                    }
                 }
             }
         }
@@ -228,6 +234,22 @@ pub async fn update_task_schedule(
             if let Some(retries) = req.max_retries {
                 cfg.max_retries = Some(retries);
             }
+            if let Some(channels) = &req.channels {
+                cfg.channels = channels.clone();
+            }
+        }
+    }
+
+    // Hot-reload channels on the task
+    if let Some(channel_names) = &req.channels {
+        if let Some(task) = state.tasks.iter().find(|t| t.name == effective_name) {
+            let new_channels: Vec<Arc<dyn crate::channels::Channel>> = channel_names
+                .iter()
+                .filter_map(|name| state.channels.iter().find(|c| c.name() == name.as_str()).cloned())
+                .collect();
+            let mut task_channels = task.channels.write().await;
+            *task_channels = new_channels;
+            tracing::info!("Hot-reloaded channels for task '{}'", effective_name);
         }
     }
 
@@ -370,9 +392,22 @@ pub struct ConfigOverview {
     pub log_level: String,
     pub llm_model: String,
     pub llm_api_base: String,
+    pub llm_max_tokens: u32,
     pub sources: SourcesStatus,
     pub channels: ChannelsStatus,
     pub feishu_webhook_url: String,
+    pub email_config: EmailConfigOverview,
+}
+
+#[derive(Serialize)]
+pub struct EmailConfigOverview {
+    pub enabled: bool,
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub smtp_username: String,
+    pub has_password: bool,
+    pub from: String,
+    pub to: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -399,10 +434,24 @@ pub async fn get_config(State(state): State<Arc<AppState>>) -> Json<ConfigOvervi
         .and_then(|doc| doc.get("llm")?.get("model")?.as_str().map(String::from))
         .unwrap_or_else(|| config.llm.model.clone());
 
+    // Read email config from runtime state (hot-reloaded)
+    let ec = state.email_config.read().await;
+    let email_cfg = EmailConfigOverview {
+        enabled: ec.enabled,
+        smtp_host: ec.smtp_host.clone(),
+        smtp_port: ec.smtp_port,
+        smtp_username: ec.smtp_username.clone(),
+        has_password: !ec.smtp_password.is_empty(),
+        from: ec.from.clone(),
+        to: ec.to.clone(),
+    };
+    drop(ec);
+
     Json(ConfigOverview {
         log_level: config.general.log_level.clone(),
         llm_model,
         llm_api_base: mask_sensitive_url(&config.llm.api_base),
+        llm_max_tokens: config.llm.max_tokens,
         sources: SourcesStatus {
             hackernews: config.sources.hackernews.enabled,
             reddit: config.sources.reddit.enabled,
@@ -411,9 +460,10 @@ pub async fn get_config(State(state): State<Arc<AppState>>) -> Json<ConfigOvervi
         channels: ChannelsStatus {
             telegram: config.channels.telegram.enabled,
             feishu: config.channels.feishu.enabled,
-            email: config.channels.email.enabled,
+            email: email_cfg.enabled,
         },
         feishu_webhook_url: mask_sensitive_url(&config.channels.feishu.webhook_url),
+        email_config: email_cfg,
     })
 }
 
@@ -512,8 +562,98 @@ pub async fn update_feishu_config(
 }
 
 #[derive(Deserialize)]
+pub struct UpdateEmailRequest {
+    pub enabled: bool,
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub smtp_username: String,
+    pub smtp_password: String,
+    pub from: String,
+    pub to: Vec<String>,
+}
+
+pub async fn update_email_config(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<UpdateEmailRequest>,
+) -> Result<Json<UpdateConfigResponse>, StatusCode> {
+    let content = std::fs::read_to_string(&state.config_path).map_err(|e| {
+        tracing::error!("Failed to read config file: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut doc: toml::Value = content.parse().map_err(|e| {
+        tracing::error!("Failed to parse config: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Read existing password to preserve if not provided
+    let existing_password = doc
+        .get("channels")
+        .and_then(|c| c.get("email"))
+        .and_then(|e| e.get("smtp_password"))
+        .and_then(|p| p.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let effective_password = if req.smtp_password.is_empty() {
+        existing_password
+    } else {
+        req.smtp_password.clone()
+    };
+
+    if let Some(channels) = doc.get_mut("channels").and_then(|c| c.as_table_mut()) {
+        let email_table = if let Some(email) = channels.get_mut("email").and_then(|e| e.as_table_mut()) {
+            email
+        } else {
+            channels.insert("email".to_string(), toml::Value::Table(toml::map::Map::new()));
+            channels.get_mut("email").unwrap().as_table_mut().unwrap()
+        };
+
+        email_table.insert("enabled".to_string(), toml::Value::Boolean(req.enabled));
+        email_table.insert("smtp_host".to_string(), toml::Value::String(req.smtp_host.clone()));
+        email_table.insert("smtp_port".to_string(), toml::Value::Integer(req.smtp_port as i64));
+        email_table.insert("smtp_username".to_string(), toml::Value::String(req.smtp_username.clone()));
+        email_table.insert("smtp_password".to_string(), toml::Value::String(effective_password.clone()));
+        email_table.insert("from".to_string(), toml::Value::String(req.from.clone()));
+        email_table.insert("to".to_string(), toml::Value::Array(
+            req.to.iter().cloned().map(toml::Value::String).collect()
+        ));
+    }
+
+    let new_content = toml::to_string_pretty(&doc).map_err(|e| {
+        tracing::error!("Failed to serialize config: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    std::fs::write(&state.config_path, &new_content).map_err(|e| {
+        tracing::error!("Failed to write config file: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Hot-reload: update runtime email config immediately
+    {
+        let mut email_cfg = state.email_config.write().await;
+        email_cfg.enabled = req.enabled;
+        email_cfg.smtp_host = req.smtp_host;
+        email_cfg.smtp_port = req.smtp_port;
+        email_cfg.smtp_username = req.smtp_username;
+        email_cfg.smtp_password = effective_password;
+        email_cfg.from = req.from;
+        email_cfg.to = req.to;
+    }
+
+    tracing::info!("Email config updated and hot-reloaded (enabled: {})", req.enabled);
+
+    Ok(Json(UpdateConfigResponse {
+        success: true,
+        message: "邮件配置已保存并立即生效".to_string(),
+    }))
+}
+
+#[derive(Deserialize)]
 pub struct UpdateLlmRequest {
     pub model: String,
+    pub max_tokens: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -631,6 +771,9 @@ pub async fn update_llm_config(
 
     if let Some(llm) = doc.get_mut("llm").and_then(|l| l.as_table_mut()) {
         llm.insert("model".to_string(), toml::Value::String(req.model.clone()));
+        if let Some(max_tokens) = req.max_tokens {
+            llm.insert("max_tokens".to_string(), toml::Value::Integer(max_tokens as i64));
+        }
     }
 
     let new_content = toml::to_string_pretty(&doc).map_err(|e| {
@@ -643,10 +786,16 @@ pub async fn update_llm_config(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    tracing::info!("LLM model updated to: {}", req.model);
+    let mut msg_parts = vec![format!("模型已切换为 {}", req.model)];
+    if let Some(max_tokens) = req.max_tokens {
+        tracing::info!("LLM config updated: model={}, max_tokens={}", req.model, max_tokens);
+        msg_parts.push(format!("max_tokens={}", max_tokens));
+    } else {
+        tracing::info!("LLM model updated to: {}", req.model);
+    }
 
     Ok(Json(UpdateConfigResponse {
         success: true,
-        message: format!("模型已切换为 {}", req.model),
+        message: msg_parts.join(", "),
     }))
 }

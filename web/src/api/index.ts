@@ -56,9 +56,21 @@ export interface ConfigOverview {
   log_level: string
   llm_model: string
   llm_api_base: string
+  llm_max_tokens: number
   sources: { hackernews: boolean; reddit: boolean; rss: boolean }
   channels: { telegram: boolean; feishu: boolean; email: boolean }
   feishu_webhook_url: string
+  email_config: EmailConfigOverview
+}
+
+export interface EmailConfigOverview {
+  enabled: boolean
+  smtp_host: string
+  smtp_port: number
+  smtp_username: string
+  has_password: boolean
+  from: string
+  to: string[]
 }
 
 export interface SourceInfo {
@@ -71,8 +83,19 @@ export interface FeishuConfigUpdate {
   webhook_url: string
 }
 
+export interface EmailConfigUpdate {
+  enabled: boolean
+  smtp_host: string
+  smtp_port: number
+  smtp_username: string
+  smtp_password: string
+  from: string
+  to: string[]
+}
+
 export interface LlmConfigUpdate {
   model: string
+  max_tokens?: number
 }
 
 export interface UpdateConfigResponse {
@@ -84,6 +107,7 @@ export interface UpdateScheduleRequest {
   name?: string
   cron?: string
   max_retries?: number
+  channels?: string[]
 }
 
 export interface ToggleTaskRequest {
@@ -108,6 +132,8 @@ export const getConfig = () => api.get<ConfigOverview>('/config')
 export const getSources = () => api.get<SourceInfo[]>('/sources')
 export const updateFeishuConfig = (data: FeishuConfigUpdate) =>
   api.put<UpdateConfigResponse>('/config/feishu', data)
+export const updateEmailConfig = (data: EmailConfigUpdate) =>
+  api.put<UpdateConfigResponse>('/config/email', data)
 export const updateLlmConfig = (data: LlmConfigUpdate) =>
   api.put<UpdateConfigResponse>('/config/llm', data)
 

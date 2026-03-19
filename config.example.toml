@@ -57,8 +57,8 @@ feeds = [
 api_base = "https://api.openai.com/v1"
 api_key = "sk-your-api-key"
 model = "gpt-4o-mini"
-# 摘要最大 token 数
-max_tokens = 2000
+# 摘要最大 token 数（建议 4000-8000，过小会导致输出截断）
+max_tokens = 4000
 # 自定义系统提示词 (可选)
 # system_prompt = ""
 

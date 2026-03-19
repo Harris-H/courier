@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 use crate::channels::Channel;
@@ -29,7 +30,7 @@ pub struct DigestTask {
     pub name: String,
     pub sources: Vec<Arc<dyn Source>>,
     pub llm: Arc<dyn LlmClient>,
-    pub channels: Vec<Arc<dyn Channel>>,
+    pub channels: RwLock<Vec<Arc<dyn Channel>>>,
     pub prompt_template: Option<String>,
     pub max_retries: u32,
 }
@@ -45,7 +46,7 @@ impl DigestTask {
             name: config.name.clone(),
             sources,
             llm,
-            channels,
+            channels: RwLock::new(channels),
             prompt_template: config.prompt_template.clone(),
             max_retries: config.max_retries.unwrap_or(2),
         }
@@ -185,8 +186,8 @@ impl DigestTask {
 
     /// Push digest to all channels concurrently
     async fn push_to_channels(&self, title: &str, digest: &str) -> (usize, usize) {
-        let handles: Vec<_> = self
-            .channels
+        let channels = self.channels.read().await;
+        let handles: Vec<_> = channels
             .iter()
             .map(|channel| {
                 let channel = channel.clone();

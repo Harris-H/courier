@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::channels::Channel;
-use crate::config::AppConfig;
+use crate::config::{AppConfig, EmailConfig};
 use crate::db::Database;
 use crate::llm::LlmClient;
 use crate::scheduler::Scheduler;
@@ -24,5 +24,6 @@ pub struct AppState {
     pub scheduler_history: Arc<RwLock<Vec<ExecutionRecord>>>,
     pub scheduler: Arc<Scheduler>,
     pub db: Arc<Database>,
+    pub email_config: Arc<RwLock<EmailConfig>>,
     pub started_at: std::time::Instant,
 }

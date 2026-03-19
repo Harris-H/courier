@@ -77,7 +77,8 @@ async fn main() -> Result<()> {
     info!("LLM client initialized (model: {})", config.llm.model);
 
     // Build channels
-    let channels = build_channels(&config);
+    let email_config = Arc::new(RwLock::new(config.channels.email.clone()));
+    let channels = build_channels(&config, email_config.clone());
     info!("Loaded {} channel(s)", channels.len());
 
     // Shared execution history
@@ -160,6 +161,7 @@ async fn main() -> Result<()> {
         scheduler_history: history,
         scheduler: sched.clone(),
         db: db.clone(),
+        email_config,
         started_at: std::time::Instant::now(),
     });
 
@@ -211,7 +213,7 @@ fn build_sources(config: &AppConfig) -> Vec<Arc<dyn Source>> {
     sources
 }
 
-fn build_channels(config: &AppConfig) -> Vec<Arc<dyn Channel>> {
+fn build_channels(config: &AppConfig, email_config: Arc<RwLock<config::EmailConfig>>) -> Vec<Arc<dyn Channel>> {
     let mut channels: Vec<Arc<dyn Channel>> = Vec::new();
 
     if config.channels.telegram.enabled {
@@ -226,9 +228,8 @@ fn build_channels(config: &AppConfig) -> Vec<Arc<dyn Channel>> {
         )));
     }
 
-    if config.channels.email.enabled {
-        channels.push(Arc::new(EmailChannel::new(config.channels.email.clone())));
-    }
+    // Always create email channel — it checks enabled state dynamically
+    channels.push(Arc::new(EmailChannel::new(email_config)));
 
     channels
 }

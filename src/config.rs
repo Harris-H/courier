@@ -137,7 +137,7 @@ pub struct FeishuConfig {
     pub app_secret: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct EmailConfig {
     #[serde(default)]
     pub enabled: bool,

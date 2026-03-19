@@ -11,6 +11,7 @@ const editingTask = ref<string | null>(null)
 const editName = ref('')
 const editCron = ref('')
 const editRetries = ref(2)
+const editChannels = ref<string[]>([])
 const editErrors = ref<Record<string, string>>({})
 
 onMounted(() => store.fetchTasks())
@@ -54,11 +55,14 @@ async function handleRunTask(name: string) {
   }
 }
 
-function startEdit(name: string, currentCron: string, currentRetries: number) {
+const availableChannels = ['feishu', 'telegram', 'email']
+
+function startEdit(name: string, currentCron: string, currentRetries: number, currentChannels: string[]) {
   editingTask.value = name
   editName.value = name
   editCron.value = currentCron
   editRetries.value = currentRetries
+  editChannels.value = [...currentChannels]
   editErrors.value = {}
 }
 
@@ -73,6 +77,7 @@ async function saveEdit(originalName: string) {
       name: editName.value !== originalName ? editName.value : undefined,
       cron: editCron.value,
       max_retries: editRetries.value,
+      channels: editChannels.value,
     })
     if (res.data.success) {
       toast.success(res.data.message)
@@ -159,7 +164,7 @@ function cancelEdit() {
             <!-- Actions -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
               <button
-                @click="startEdit(task.name, task.cron, task.max_retries)"
+                @click="startEdit(task.name, task.cron, task.max_retries, task.channels)"
                 class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
                 title="编辑任务"
               >
@@ -241,11 +246,13 @@ function cancelEdit() {
                   class="inline-block bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[11px] mr-1"
                 >{{ s }}</span>
               </div>
-              <div>
+              <div class="flex items-center gap-2">
                 <span class="text-gray-400">推送渠道：</span>
-                <span v-for="c in task.channels" :key="c"
-                  class="inline-block bg-green-50 text-green-600 px-1.5 py-0.5 rounded text-[11px] mr-1"
-                >{{ c }}</span>
+                <label v-for="ch in availableChannels" :key="ch" class="inline-flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" :value="ch" v-model="editChannels"
+                    class="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <span class="text-[11px] text-gray-600">{{ ch }}</span>
+                </label>
               </div>
             </div>
           </div>

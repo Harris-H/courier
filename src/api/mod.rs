@@ -61,6 +61,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/history/{index}/content", get(routes::get_history_content))
         .route("/api/config", get(routes::get_config))
         .route("/api/config/feishu", put(routes::update_feishu_config))
+        .route("/api/config/email", put(routes::update_email_config))
         .route("/api/config/llm", put(routes::update_llm_config))
         .route("/api/sources", get(routes::list_sources))
         .layer(middleware::from_fn_with_state(state.clone(), auth_middleware))
