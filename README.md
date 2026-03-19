@@ -6,12 +6,13 @@
 
 ## Features
 
-- 📰 **Multi-source Fetching**: Hacker News / Reddit / RSS
+- 📰 **Multi-source Fetching**: Hacker News / Reddit / RSS (with RSSHub support)
 - 🤖 **LLM-powered Summarization**: Generate daily digests via OpenAI-compatible APIs
-- 📮 **Multi-channel Push**: Telegram / Feishu (Lark) / Email
+- 📮 **Multi-channel Push**: Telegram / Feishu (Lark) / Email (SMTP with Markdown→HTML rendering)
 - ⏰ **Cron Scheduling**: Flexible cron expression configuration
 - 💬 **Chat Mode**: Interactive conversations via Telegram bot
 - 🖥️ **Web Dashboard**: Vue.js-based management panel with real-time status
+- 🔄 **Hot-reload Config**: Update email, channel, and LLM settings without restarting
 - 🔒 **Security**: Optional API key authentication, sensitive data masking, input validation
 
 ## Architecture
@@ -21,7 +22,7 @@ Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
          ↑                                        ↑
          └──────── Scheduler(Cron) ───────────────┘
                         + Chat Mode
-                        + Web Dashboard
+                        + Web Dashboard (Hot-reload)
 ```
 
 ## Tech Stack
@@ -33,7 +34,7 @@ Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
 | Database | SQLite (rusqlite) |
 | LLM | OpenAI-compatible API (async-openai) |
 | Bot | Teloxide (Telegram) |
-| Email | Lettre (SMTP) |
+| Email | Lettre (SMTP), pulldown-cmark (Markdown→HTML) |
 
 ## Quick Start
 
@@ -127,9 +128,19 @@ Sensitive information (webhook URLs, API endpoints) is automatically masked in A
 The web dashboard provides:
 
 - 📊 **Overview**: Uptime, task count, success rate
-- ⏰ **Task Management**: Edit schedules, rename tasks, trigger manual runs with input validation
+- ⏰ **Task Management**: Edit schedules, rename tasks, switch push channels, trigger manual runs
 - 📋 **Execution History**: View past digests with expandable content
-- ⚙️ **Configuration**: Switch LLM models, update channel settings with form validation
+- ⚙️ **Configuration**: Switch LLM models, adjust max tokens, configure email SMTP, update channel settings — all with hot-reload (no restart needed)
+
+### Email Channel
+
+Courier supports sending digests via email with rich HTML rendering:
+
+- SMTP configuration via web dashboard (host, port, username, password, from, to)
+- Markdown content is automatically converted to styled HTML emails
+- Smart "from" address: provide just a display name and it auto-constructs `"Name <smtp_username>"`
+- Password security: never exposed in API responses, only `has_password` flag is returned
+- Hot-reload: enable/disable and update settings without restarting
 
 ## Deployment
 

@@ -6,12 +6,13 @@
 
 ## 功能
 
-- 📰 **多数据源抓取**: Hacker News / Reddit / RSS
+- 📰 **多数据源抓取**: Hacker News / Reddit / RSS（支持 RSSHub）
 - 🤖 **LLM 智能摘要**: 调用 OpenAI 兼容 API 生成日报
-- 📮 **多通道推送**: Telegram / 飞书 / Email
+- 📮 **多通道推送**: Telegram / 飞书 / Email（SMTP，Markdown→HTML 富文本渲染）
 - ⏰ **定时调度**: Cron 表达式灵活配置
 - 💬 **聊天模式**: 通过 Telegram Bot 交互式对话
 - 🖥️ **Web 仪表盘**: Vue.js 管理面板，实时查看状态
+- 🔄 **热重载配置**: 邮件、频道、LLM 配置修改无需重启即刻生效
 - 🔒 **安全特性**: 可选 API 密钥认证、敏感信息脱敏、输入校验
 
 ## 架构
@@ -21,7 +22,7 @@ Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
          ↑                                    ↑
          └──────── Scheduler(Cron) ───────────┘
                         + 聊天模式
-                        + Web 仪表盘
+                        + Web 仪表盘（热重载）
 ```
 
 ## 技术栈
@@ -33,7 +34,7 @@ Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
 | 数据库 | SQLite (rusqlite) |
 | LLM | OpenAI 兼容 API (async-openai) |
 | Bot | Teloxide (Telegram) |
-| 邮件 | Lettre (SMTP) |
+| 邮件 | Lettre (SMTP)、pulldown-cmark (Markdown→HTML) |
 
 ## 快速开始
 
@@ -127,9 +128,19 @@ api_key = "your-secret-api-key"
 Web 仪表盘提供：
 
 - 📊 **概览**: 运行时间、任务数量、成功率
-- ⏰ **任务管理**: 编辑计划、重命名任务、手动触发执行，含输入校验
+- ⏰ **任务管理**: 编辑计划、重命名任务、切换推送渠道、手动触发执行
 - 📋 **执行历史**: 查看历史摘要内容
-- ⚙️ **配置管理**: 切换 LLM 模型、更新渠道设置，含表单验证
+- ⚙️ **配置管理**: 切换 LLM 模型、调整 max_tokens、配置邮件 SMTP、更新渠道设置——全部支持热重载（无需重启）
+
+### 邮件渠道
+
+Courier 支持通过邮件推送日报摘要，邮件内容自动渲染为精美 HTML：
+
+- 通过 Web 仪表盘配置 SMTP（服务器地址、端口、用户名、密码、发件人、收件人）
+- Markdown 内容自动转换为带样式的 HTML 邮件
+- 智能发件人地址：只输入显示名称即可自动构造 `"名称 <SMTP用户名>"` 格式
+- 密码安全：API 响应中不会返回 SMTP 密码，仅返回 `has_password` 标志
+- 热重载：启用/禁用、更新配置无需重启服务
 
 ## 部署
 
