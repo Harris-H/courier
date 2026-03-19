@@ -113,10 +113,12 @@ async fn main() -> Result<()> {
             .collect();
 
         if task_sources.is_empty() {
-            tracing::warn!(
-                "Schedule '{}' has no matching sources, skipping",
-                schedule_config.name
-            );
+            if schedule_config.enabled != Some(false) {
+                tracing::warn!(
+                    "Schedule '{}' has no matching sources, skipping",
+                    schedule_config.name
+                );
+            }
             continue;
         }
 
