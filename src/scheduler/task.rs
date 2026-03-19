@@ -91,24 +91,42 @@ impl DigestTask {
         })
     }
 
-    /// Fetch from all sources concurrently
+    /// Fetch from all sources concurrently, with per-source retry
     async fn fetch_all_sources(&self) -> Vec<Article> {
+        let max_source_retries = self.max_retries;
         let handles: Vec<_> = self
             .sources
             .iter()
             .map(|source| {
                 let source = source.clone();
                 tokio::spawn(async move {
-                    match source.fetch().await {
-                        Ok(articles) => {
-                            info!("✔ {} → {} articles", source.name(), articles.len());
-                            articles
+                    for attempt in 0..=max_source_retries {
+                        if attempt > 0 {
+                            let delay = Duration::from_secs(2u64.pow(attempt));
+                            warn!(
+                                "Retrying source '{}' (attempt {}/{}) after {}s",
+                                source.name(),
+                                attempt + 1,
+                                max_source_retries + 1,
+                                delay.as_secs()
+                            );
+                            tokio::time::sleep(delay).await;
                         }
-                        Err(e) => {
-                            error!("✘ {} → failed: {}", source.name(), e);
-                            Vec::new()
+                        match source.fetch().await {
+                            Ok(articles) if !articles.is_empty() => {
+                                info!("✔ {} → {} articles", source.name(), articles.len());
+                                return articles;
+                            }
+                            Ok(_) => {
+                                warn!("⚠ {} → 0 articles (empty)", source.name());
+                            }
+                            Err(e) => {
+                                error!("✘ {} → failed: {}", source.name(), e);
+                            }
                         }
                     }
+                    warn!("✘ {} → all retries exhausted, skipping", source.name());
+                    Vec::new()
                 })
             })
             .collect();

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
+use std::time::Duration;
 use tracing::debug;
 
 use super::{Article, Source};
@@ -31,10 +32,12 @@ pub struct HackerNewsSource {
 
 impl HackerNewsSource {
     pub fn new(config: HackerNewsConfig) -> Self {
-        Self {
-            client: Client::new(),
-            config,
-        }
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+        Self { client, config }
     }
 }
 
