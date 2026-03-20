@@ -88,6 +88,28 @@ impl RssSource {
                 message: e.to_string(),
             })?;
 
+        let status = response.status();
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+
+        if !status.is_success() {
+            return Err(crate::error::CourierError::SourceFetch {
+                origin: feed_entry.name.clone(),
+                message: format!("HTTP {} (content-type: {})", status, content_type),
+            });
+        }
+
+        if !content_type.contains("xml") && !content_type.contains("rss") {
+            warn!(
+                "RSS feed '{}' returned unexpected content-type: {}",
+                feed_entry.name, content_type
+            );
+        }
+
         let body = response
             .bytes()
             .await
@@ -97,9 +119,16 @@ impl RssSource {
             })?;
 
         let channel =
-            rss::Channel::read_from(&body[..]).map_err(|e| crate::error::CourierError::SourceFetch {
-                origin: feed_entry.name.clone(),
-                message: e.to_string(),
+            rss::Channel::read_from(&body[..]).map_err(|e| {
+                let preview = String::from_utf8_lossy(&body[..body.len().min(500)]);
+                warn!(
+                    "RSS feed '{}' parse failed (status: {}, content-type: {}), body preview: {}",
+                    feed_entry.name, status, content_type, preview
+                );
+                crate::error::CourierError::SourceFetch {
+                    origin: feed_entry.name.clone(),
+                    message: e.to_string(),
+                }
             })?;
 
         let articles = channel
