@@ -86,8 +86,8 @@ All models are accessed via [Volcengine ARK](https://www.volcengine.com/docs/823
 | Model ID / Endpoint | Name | Provider |
 |----------|------|----------|
 | `ep-20260404123347-5lprz` | Doubao Seed 2.0 Lite | Volcengine (ARK) |
-| `glm-4-7-251222` | GLM-4.7B | Zhipu AI |
-| `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
+| `ep-20260404125954-zfgwz` | GLM-4.7B | Zhipu AI |
+| `ep-20260404125909-wzgdz` | DeepSeek V3.2 | DeepSeek |
 | `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
 
 > **Tip:** On Volcengine ARK, you can create inference endpoints for any supported model. Use the endpoint ID (format: `ep-xxxxxxxxxxxx-xxxxx`) as the `model` value in your config.

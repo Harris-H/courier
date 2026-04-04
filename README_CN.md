@@ -86,8 +86,8 @@ docker run -d \
 | 模型 ID / 接入点 | 名称 | 提供商 |
 |---------|------|--------|
 | `ep-20260404123347-5lprz` | Doubao Seed 2.0 Lite | 火山方舟（ARK） |
-| `glm-4-7-251222` | GLM-4.7B | 智谱 AI |
-| `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
+| `ep-20260404125954-zfgwz` | GLM-4.7B | 智谱 AI |
+| `ep-20260404125909-wzgdz` | DeepSeek V3.2 | DeepSeek |
 | `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
 
 > **提示：** 在火山方舟平台上，你可以为任何支持的模型创建推理接入点。使用接入点 ID（格式：`ep-xxxxxxxxxxxx-xxxxx`）作为配置中的 `model` 值即可。
