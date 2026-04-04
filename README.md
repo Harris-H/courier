@@ -81,12 +81,16 @@ See [config.example.toml](./config.example.toml) for all available options.
 
 ### Supported LLM Models
 
-| Model ID | Name | Provider |
+All models are accessed via [Volcengine ARK](https://www.volcengine.com/docs/82379) OpenAI-compatible API. You can use either model IDs or inference endpoint IDs (e.g., `ep-xxxx`) as the model value.
+
+| Model ID / Endpoint | Name | Provider |
 |----------|------|----------|
-| `doubao-seed-2-0-lite-260215` | Doubao Seed 2.0 Lite (default) | Volcengine (ARK) |
+| `ep-20260404123347-5lprz` | Doubao Seed 2.0 Lite | Volcengine (ARK) |
 | `glm-4-7-251222` | GLM-4.7B | Zhipu AI |
 | `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
 | `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
+
+> **Tip:** On Volcengine ARK, you can create inference endpoints for any supported model. Use the endpoint ID (format: `ep-xxxxxxxxxxxx-xxxxx`) as the `model` value in your config.
 
 ### Key Configuration Sections
 

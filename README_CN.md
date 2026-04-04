@@ -81,12 +81,16 @@ docker run -d \
 
 ### 支持的 LLM 模型
 
-| 模型 ID | 名称 | 提供商 |
+所有模型通过[火山方舟（Volcengine ARK）](https://www.volcengine.com/docs/82379) OpenAI 兼容 API 接入。可使用模型 ID 或推理接入点 ID（如 `ep-xxxx`）作为 model 值。
+
+| 模型 ID / 接入点 | 名称 | 提供商 |
 |---------|------|--------|
-| `doubao-seed-2-0-lite-260215` | Doubao Seed 2.0 Lite（默认） | 火山方舟（ARK） |
+| `ep-20260404123347-5lprz` | Doubao Seed 2.0 Lite | 火山方舟（ARK） |
 | `glm-4-7-251222` | GLM-4.7B | 智谱 AI |
 | `deepseek-v3-2-251201` | DeepSeek V3.2 | DeepSeek |
 | `kimi-k2-thinking-251104` | Kimi K2 Thinking | Moonshot AI |
+
+> **提示：** 在火山方舟平台上，你可以为任何支持的模型创建推理接入点。使用接入点 ID（格式：`ep-xxxxxxxxxxxx-xxxxx`）作为配置中的 `model` 值即可。
 
 ### 主要配置项
 

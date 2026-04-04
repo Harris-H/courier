@@ -29,7 +29,7 @@ const emailEditing = ref(false)
 const emailPasswordVisible = ref(false)
 
 const availableModels = [
-  { value: 'doubao-seed-2-0-lite-260215', label: 'Doubao Seed 2.0 Lite', provider: '火山方舟' },
+  { value: 'ep-20260404123347-5lprz', label: 'Doubao Seed 2.0 Lite', provider: '火山方舟' },
   { value: 'glm-4-7-251222', label: 'GLM-4.7B', provider: '智谱 AI' },
   { value: 'deepseek-v3-2-251201', label: 'DeepSeek V3.2', provider: 'DeepSeek' },
   { value: 'kimi-k2-thinking-251104', label: 'Kimi K2 Thinking', provider: 'Moonshot AI' },

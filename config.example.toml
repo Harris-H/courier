@@ -61,7 +61,7 @@ feeds = [
 # ============================================================
 
 [llm]
-# OpenAI 兼容 API
+# OpenAI 兼容 API（支持 OpenAI、火山方舟、DeepSeek 等）
 api_base = "https://api.openai.com/v1"
 api_key = "sk-your-api-key"
 model = "gpt-4o-mini"
@@ -69,6 +69,11 @@ model = "gpt-4o-mini"
 max_tokens = 4000
 # 自定义系统提示词 (可选)
 # system_prompt = ""
+
+# --- 火山方舟 (Volcano Ark) 示例 ---
+# api_base = "https://ark.cn-beijing.volces.com/api/v3"
+# api_key = "your-ark-api-key"
+# model = "ep-xxxxxxxxxxxx-xxxxx"  # 推理接入点 endpoint ID，如 Doubao-Seed-2.0-lite
 
 # ============================================================
 # 推送通道配置
