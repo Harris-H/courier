@@ -30,7 +30,7 @@ Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
 | Component | Technology |
 |-----------|------------|
 | Backend | Rust, Tokio, Axum |
-| Frontend | Vue 3, TypeScript, Tailwind CSS, Vite |
+| Frontend | Vue 3, TypeScript, Tailwind CSS, Vite, ECharts |
 | Database | SQLite (rusqlite) |
 | LLM | OpenAI-compatible API (async-openai) |
 | Bot | Teloxide (Telegram) |
@@ -156,7 +156,7 @@ Sensitive information (webhook URLs, API endpoints) is automatically masked in A
 
 The web dashboard provides:
 
-- 📊 **Overview**: Uptime, task count, success rate
+- 📊 **Overview**: Uptime, task count, success rate, execution count & duration charts (ECharts)
 - ⏰ **Task Management**: Edit schedules, rename tasks, switch push channels, trigger manual runs
 - 📋 **Execution History**: View past digests with expandable content
 - ⚙️ **Configuration**: Switch LLM models, adjust max tokens, configure email SMTP, update channel settings — all with hot-reload (no restart needed)

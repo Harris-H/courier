@@ -30,7 +30,7 @@ Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
 | 组件 | 技术 |
 |------|------|
 | 后端 | Rust, Tokio, Axum |
-| 前端 | Vue 3, TypeScript, Tailwind CSS, Vite |
+| 前端 | Vue 3, TypeScript, Tailwind CSS, Vite, ECharts |
 | 数据库 | SQLite (rusqlite) |
 | LLM | OpenAI 兼容 API (async-openai) |
 | Bot | Teloxide (Telegram) |
@@ -156,7 +156,7 @@ api_key = "your-secret-api-key"
 
 Web 仪表盘提供：
 
-- 📊 **概览**: 运行时间、任务数量、成功率
+- 📊 **概览**: 运行时间、任务数量、成功率、执行次数与耗时图表（ECharts）
 - ⏰ **任务管理**: 编辑计划、重命名任务、切换推送渠道、手动触发执行
 - 📋 **执行历史**: 查看历史摘要内容
 - ⚙️ **配置管理**: 切换 LLM 模型、调整 max_tokens、配置邮件 SMTP、更新渠道设置——全部支持热重载（无需重启）
