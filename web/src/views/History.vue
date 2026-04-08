@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { getHistoryContent } from '../api'
 
@@ -10,8 +10,42 @@ const loadingContent = ref(false)
 const selectedItems = ref<Set<string>>(new Set())
 const showClearConfirm = ref(false)
 const deleting = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => store.fetchHistory())
+onMounted(() => {
+  store.fetchHistory()
+  startPollingIfNeeded()
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
+
+// Auto-refresh when there are Running tasks
+const hasRunningTasks = computed(() =>
+  store.history.some(e => e.status === 'Running')
+)
+
+watch(hasRunningTasks, (val) => {
+  if (val) {
+    startPollingIfNeeded()
+  } else if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
+
+function startPollingIfNeeded() {
+  if (pollTimer) return
+  pollTimer = setInterval(() => {
+    if (hasRunningTasks.value) {
+      store.fetchHistory()
+    } else if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }, 3000)
+}
 
 const allSelected = computed(() =>
   store.history.length > 0 && selectedItems.value.size === store.history.length
@@ -158,7 +192,8 @@ async function toggleContent(index: number) {
             </th>
             <th class="text-left px-4 py-3">状态</th>
             <th class="text-left px-4 py-3">任务</th>
-            <th class="text-left px-4 py-3">时间</th>
+            <th class="text-left px-4 py-3">开始时间</th>
+            <th class="text-left px-4 py-3">完成时间</th>
             <th class="text-left px-4 py-3">耗时</th>
             <th class="text-left px-4 py-3">文章数</th>
             <th class="text-left px-4 py-3">操作</th>
@@ -176,14 +211,31 @@ async function toggleContent(index: number) {
                 />
               </td>
               <td class="px-4 py-3">
-                <span :class="entry.status === 'Success' ? 'text-green-500' : 'text-red-500'" class="text-lg">
+                <span v-if="entry.status === 'Running'" class="text-lg inline-flex items-center" title="执行中">
+                  <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                </span>
+                <span v-else :class="entry.status === 'Success' ? 'text-green-500' : 'text-red-500'" class="text-lg">
                   {{ entry.status === 'Success' ? '✅' : '❌' }}
                 </span>
               </td>
               <td class="px-4 py-3 font-medium text-gray-700">{{ entry.task_name }}</td>
               <td class="px-4 py-3 text-gray-500">{{ formatTime(entry.executed_at) }}</td>
-              <td class="px-4 py-3 text-gray-500">{{ formatDuration(entry.duration_ms) }}</td>
-              <td class="px-4 py-3 text-gray-500">{{ entry.articles_count }}</td>
+              <td class="px-4 py-3 text-gray-500">
+                <span v-if="entry.status === 'Running'" class="text-blue-500 text-xs">—</span>
+                <span v-else-if="entry.completed_at">{{ formatTime(entry.completed_at) }}</span>
+                <span v-else class="text-gray-300">—</span>
+              </td>
+              <td class="px-4 py-3 text-gray-500">
+                <span v-if="entry.status === 'Running'" class="text-blue-500 text-xs">执行中...</span>
+                <span v-else>{{ formatDuration(entry.duration_ms) }}</span>
+              </td>
+              <td class="px-4 py-3 text-gray-500">
+                <span v-if="entry.status === 'Running'" class="text-blue-500 text-xs">—</span>
+                <span v-else>{{ entry.articles_count }}</span>
+              </td>
               <td class="px-4 py-3">
                 <span v-if="entry.error_message" class="text-red-500 text-xs">
                   {{ entry.error_message }}
@@ -200,7 +252,7 @@ async function toggleContent(index: number) {
             </tr>
             <!-- Expanded content row -->
             <tr v-if="expandedIndex === index">
-              <td colspan="7" class="px-4 py-4 bg-gray-50">
+              <td colspan="8" class="px-4 py-4 bg-gray-50">
                 <div v-if="loadingContent" class="text-gray-400 text-sm">加载中...</div>
                 <div v-else-if="contentCache[index]" class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
                   {{ contentCache[index] }}

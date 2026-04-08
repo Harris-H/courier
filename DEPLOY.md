@@ -19,15 +19,15 @@
 # 1. 创建部署目录
 mkdir -p /opt/courier && cd /opt/courier
 
-# 2. 上传 config.toml 和 docker-compose.yml
-#    （或从仓库获取 docker-compose.yml）
+# 2. 上传 config.toml 和 deploy/docker-compose.yml
+#    （或从仓库获取 deploy/docker-compose.yml）
 
 # 3. 登录阿里云镜像仓库
 docker login registry.cn-hangzhou.aliyuncs.com
 
 # 4. 拉取并启动
-docker compose pull
-docker compose up -d
+docker compose -f deploy/docker-compose.yml pull
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
 ### 后续更新
@@ -36,8 +36,8 @@ docker compose up -d
 
 ```bash
 cd /opt/courier
-docker compose pull
-docker compose up -d
+docker compose -f deploy/docker-compose.yml pull
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
 > 💡 可配合 Watchtower 实现全自动更新：镜像推送后自动拉取重启。
@@ -45,7 +45,7 @@ docker compose up -d
 ### 查看日志
 
 ```bash
-docker compose logs -f
+docker compose -f deploy/docker-compose.yml logs -f
 ```
 
 ---
@@ -68,7 +68,7 @@ docker save courier:latest -o courier.tar
 ### 2. 传输到服务器
 
 ```bash
-scp courier.tar config.toml docker-compose.yml user@your-server:/opt/courier/
+scp courier.tar config.toml deploy/docker-compose.yml user@your-server:/opt/courier/
 ```
 
 ### 3. 服务器端部署
@@ -76,8 +76,61 @@ scp courier.tar config.toml docker-compose.yml user@your-server:/opt/courier/
 ```bash
 cd /opt/courier
 docker load -i courier.tar
-docker compose up -d
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+---
+
+## 方式三：本地开发
+
+本地开发时，RSSHub 单独以 Docker 容器运行，前后端直接在本地启动，方便快速迭代。
+
+### 一键启动
+
+```bash
+# Linux / macOS
+./scripts/dev.sh
+
+# Windows PowerShell
+.\scripts\dev.ps1
+```
+
+脚本会自动启动 RSSHub 容器、Rust 后端和 Vue 前端 dev server，`Ctrl+C` 一键停止所有服务。
+
+### 手动启动
+
+### 1. 启动 RSSHub
+
+```bash
+docker compose -f deploy/docker-compose.dev.yml up -d
+```
+
+### 2. 修改 RSS 地址
+
+将 `config.toml` 中的 RSS feed URL 从 Docker 内网地址改为本地地址：
+
+```diff
+- url = "http://rsshub:1200/v2ex/topics/hot"
++ url = "http://localhost:1200/v2ex/topics/hot"
+```
+
+### 3. 启动后端
+
+```bash
+cargo run -- config.toml
+```
+
+### 4. 启动前端（开发模式，支持热更新）
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+前端开发服务器默认在 `http://localhost:5173`，后端 API 在 `http://localhost:9090`。
+
+> 💡 本地开发仅需 RSSHub 容器，代码修改后直接 `cargo run` 或前端热更新即可生效，无需重新构建 Docker 镜像。
 
 ---
 
@@ -85,38 +138,38 @@ docker compose up -d
 
 ```bash
 # 查看状态
-docker compose ps
+docker compose -f deploy/docker-compose.yml ps
 
 # 查看日志
-docker compose logs -f
+docker compose -f deploy/docker-compose.yml logs -f
 
 # 重启
-docker compose restart
+docker compose -f deploy/docker-compose.yml restart
 
 # 停止
-docker compose down
+docker compose -f deploy/docker-compose.yml down
 
 # 更新（CI/CD 方式）
-docker compose pull && docker compose up -d
+docker compose -f deploy/docker-compose.yml pull && docker compose -f deploy/docker-compose.yml up -d
 ```
 
 ## 注意事项
 
 - `config.toml` 中包含 API Key，请确保文件权限安全（`chmod 600 config.toml`）
 - 数据（SQLite + 日志）存储在 Docker volume `courier_data` 中，容器重建后保留
-- 默认端口 9090，可在 `docker-compose.yml` 中修改映射
-- 时区设置：`docker-compose.yml` 中 `TZ=Asia/Shanghai` 控制日志时区；`config.toml` 中 `timezone = "Asia/Shanghai"` 控制 cron 调度时区，两者需保持一致
-- 如果服务器在火山引擎 VPC 内，可将 docker-compose.yml 中的 registry 改为 `registry-vpc.cn-hangzhou.aliyuncs.com` 加速拉取
+- 默认端口 9090，可在 `deploy/docker-compose.yml` 中修改映射
+- 时区设置：`deploy/docker-compose.yml` 中 `TZ=Asia/Shanghai` 控制日志时区；`config.toml` 中 `timezone = "Asia/Shanghai"` 控制 cron 调度时区，两者需保持一致
+- 如果服务器在火山引擎 VPC 内，可将 `deploy/docker-compose.yml` 中的 registry 改为 `registry-vpc.cn-hangzhou.aliyuncs.com` 加速拉取
 
 ---
 
 ## RSSHub 集成（可选）
 
-`docker-compose.yml` 已包含 [RSSHub](https://github.com/DIYgod/RSSHub) 服务，可作为 Courier 的通用 RSS 数据源。
+`deploy/docker-compose.yml` 已包含 [RSSHub](https://github.com/DIYgod/RSSHub) 服务，可作为 Courier 的通用 RSS 数据源。
 
 ### 启用 RSSHub
 
-RSSHub 会随 `docker compose up -d` 自动启动，监听 `1200` 端口。
+RSSHub 会随 `docker compose -f deploy/docker-compose.yml up -d` 自动启动，监听 `1200` 端口。
 
 ### 在 Courier 中使用
 

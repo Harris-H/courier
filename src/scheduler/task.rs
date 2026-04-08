@@ -19,8 +19,9 @@ pub struct TaskStats {
     pub channels_failed: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TaskStatus {
+    Running,
     Success,
     Failed,
 }

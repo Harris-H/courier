@@ -1,0 +1,18 @@
+# Development: only RSSHub, courier runs locally via `cargo run`
+# Usage:
+#   docker compose -f deploy/docker-compose.dev.yml up -d
+#   cargo run -- config.toml          # backend (connects to rsshub at localhost:1200)
+#   cd web && npm run dev             # frontend dev server
+#
+# Note: update config.toml RSS feed URLs from "http://rsshub:1200/..." to "http://localhost:1200/..."
+
+services:
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: rsshub
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      - TZ=Asia/Shanghai
+      - CACHE_EXPIRE=3600

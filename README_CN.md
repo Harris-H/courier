@@ -58,22 +58,44 @@ cargo run --release
 
 仪表盘地址：`http://localhost:9090`
 
-### 3. Docker 部署
+### 3. Docker 部署（生产环境）
 
 ```bash
 # 先构建前端
 cd web && npm install && npm run build && cd ..
 
-# 构建并运行
-docker build -t courier .
-docker run -d \
-  --name courier \
-  -p 9090:9090 \
-  -v ./config.toml:/app/config.toml:ro \
-  -v courier_data:/app/data \
-  -e TZ=Asia/Shanghai \
-  courier
+# 使用 docker-compose 构建并运行（包含 RSSHub）
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+### 4. 本地开发
+
+本地开发时，仅运行 RSSHub 容器，前后端直接在本地启动，方便快速迭代：
+
+```bash
+# 一键启动（Linux/macOS）
+./scripts/dev.sh
+
+# 一键启动（Windows PowerShell）
+.\scripts\dev.ps1
+```
+
+或手动分别启动：
+
+```bash
+# 仅启动 RSSHub
+docker compose -f deploy/docker-compose.dev.yml up -d
+
+# 修改 config.toml：将 RSS feed URL 中的 "rsshub:1200" 改为 "localhost:1200"
+
+# 启动后端
+cargo run -- config.toml
+
+# 启动前端（另开终端）
+cd web && npm install && npm run dev
+```
+
+> 详见 [DEPLOY.md](./DEPLOY.md) 了解完整的部署和开发说明。
 
 ## 配置说明
 
@@ -112,7 +134,7 @@ timezone = "Asia/Shanghai"  # Cron 表达式使用此时区
 
 日志时间戳同样遵循 Docker 环境中设置的 `TZ` 环境变量。
 
-> **注意：** `timezone` 配置控制 cron 调度时区。`docker-compose.yml` 中的 `TZ` 环境变量控制日志输出时区。请确保两者保持一致。
+> **注意：** `timezone` 配置控制 cron 调度时区。`deploy/docker-compose.yml` 中的 `TZ` 环境变量控制日志输出时区。请确保两者保持一致。
 
 ### 安全特性
 

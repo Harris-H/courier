@@ -58,22 +58,44 @@ cargo run --release
 
 The dashboard will be available at `http://localhost:9090`.
 
-### 3. Docker
+### 3. Docker (Production)
 
 ```bash
 # Build frontend first
 cd web && npm install && npm run build && cd ..
 
-# Build and run
-docker build -t courier .
-docker run -d \
-  --name courier \
-  -p 9090:9090 \
-  -v ./config.toml:/app/config.toml:ro \
-  -v courier_data:/app/data \
-  -e TZ=Asia/Shanghai \
-  courier
+# Build and run with docker-compose (includes RSSHub)
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+### 4. Local Development
+
+For rapid iteration, run only RSSHub in Docker while running the backend and frontend locally:
+
+```bash
+# One-click startup (Linux/macOS)
+./scripts/dev.sh
+
+# One-click startup (Windows PowerShell)
+.\scripts\dev.ps1
+```
+
+Or start each service manually:
+
+```bash
+# Start RSSHub only
+docker compose -f deploy/docker-compose.dev.yml up -d
+
+# Update config.toml: change "rsshub:1200" to "localhost:1200" in RSS feed URLs
+
+# Run backend
+cargo run -- config.toml
+
+# Run frontend (in a separate terminal)
+cd web && npm install && npm run dev
+```
+
+> See [DEPLOY.md](./DEPLOY.md) for full deployment and development instructions.
 
 ## Configuration
 
@@ -112,7 +134,7 @@ If not specified, defaults to `"UTC"`. With the above setting, `cron = "0 0 10 *
 
 Log timestamps also follow the `TZ` environment variable set in your Docker environment.
 
-> **Note:** The `timezone` config controls cron scheduling. The `TZ` environment variable (set in docker-compose.yml) controls log output timestamps. Make sure both are consistent.
+> **Note:** The `timezone` config controls cron scheduling. The `TZ` environment variable (set in `deploy/docker-compose.yml`) controls log output timestamps. Make sure both are consistent.
 
 ### Security
 

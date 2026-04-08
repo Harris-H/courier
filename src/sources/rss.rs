@@ -103,7 +103,10 @@ impl RssSource {
             });
         }
 
-        if !content_type.contains("xml") && !content_type.contains("rss") {
+        if !content_type.contains("xml")
+            && !content_type.contains("rss")
+            && !content_type.contains("atom")
+        {
             warn!(
                 "RSS feed '{}' returned unexpected content-type: {}",
                 feed_entry.name, content_type
@@ -118,34 +121,78 @@ impl RssSource {
                 message: e.to_string(),
             })?;
 
-        let channel =
-            rss::Channel::read_from(&body[..]).map_err(|e| {
-                let preview = String::from_utf8_lossy(&body[..body.len().min(500)]);
+        // Try RSS 2.0 first, then fall back to Atom format
+        if let Ok(channel) = rss::Channel::read_from(&body[..]) {
+            let articles = channel
+                .items()
+                .iter()
+                .map(|item| Article {
+                    title: item.title().unwrap_or("Untitled").to_string(),
+                    url: item.link().map(|s| s.to_string()),
+                    source: feed_entry.name.clone(),
+                    summary: item.description().map(|s| s.to_string()),
+                    score: None,
+                    comments_count: None,
+                    published_at: item.pub_date().map(|s| s.to_string()),
+                })
+                .collect();
+            return Ok(articles);
+        }
+
+        // Fall back to Atom parsing (RSSHub often returns Atom format)
+        let body_str = String::from_utf8_lossy(&body);
+        match body_str.parse::<atom_syndication::Feed>() {
+            Ok(feed) => {
+                let articles = feed
+                    .entries()
+                    .iter()
+                    .map(|entry| {
+                        let summary = entry
+                            .content()
+                            .and_then(|c| c.value())
+                            .or_else(|| entry.summary().map(|s| s.as_str()))
+                            .map(|html| {
+                                let text = scraper::Html::parse_fragment(html)
+                                    .root_element()
+                                    .text()
+                                    .collect::<String>();
+                                let trimmed = text.trim().to_string();
+                                if trimmed.len() > 500 {
+                                    format!("{}...", &trimmed[..500])
+                                } else {
+                                    trimmed
+                                }
+                            })
+                            .filter(|s| !s.is_empty());
+
+                        Article {
+                            title: entry.title().as_str().to_string(),
+                            url: entry.links().first().map(|l| l.href().to_string()),
+                            source: feed_entry.name.clone(),
+                            summary,
+                            score: None,
+                            comments_count: None,
+                            published_at: entry.published().map(|d| d.to_string()),
+                        }
+                    })
+                    .collect();
+                Ok(articles)
+            }
+            Err(atom_err) => {
+                let preview = &body_str[..body_str.len().min(500)];
                 warn!(
-                    "RSS feed '{}' parse failed (status: {}, content-type: {}), body preview: {}",
+                    "RSS feed '{}' failed both RSS and Atom parsing (status: {}, content-type: {}), body preview: {}",
                     feed_entry.name, status, content_type, preview
                 );
-                crate::error::CourierError::SourceFetch {
+                Err(crate::error::CourierError::SourceFetch {
                     origin: feed_entry.name.clone(),
-                    message: e.to_string(),
-                }
-            })?;
-
-        let articles = channel
-            .items()
-            .iter()
-            .map(|item| Article {
-                title: item.title().unwrap_or("Untitled").to_string(),
-                url: item.link().map(|s| s.to_string()),
-                source: feed_entry.name.clone(),
-                summary: item.description().map(|s| s.to_string()),
-                score: None,
-                comments_count: None,
-                published_at: item.pub_date().map(|s| s.to_string()),
-            })
-            .collect();
-
-        Ok(articles)
+                    message: format!(
+                        "not valid RSS or Atom: {}",
+                        atom_err
+                    ),
+                })
+            }
+        }
     }
 }
 

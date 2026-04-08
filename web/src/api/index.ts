@@ -42,6 +42,7 @@ export interface HistoryEntry {
   task_name: string
   status: string
   executed_at: string
+  completed_at: string | null
   duration_ms: number
   articles_count: number
   error_message: string | null

@@ -3,6 +3,7 @@
 *.swo
 .env
 config.toml
+config.dev.toml
 data/
 *.tar
 *.tar.gz

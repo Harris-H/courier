@@ -82,8 +82,32 @@ pub async fn run_task(
         let start = std::time::Instant::now();
         let started_at = chrono::Local::now();
 
+        // Insert a "Running" record immediately
+        let running_record = crate::scheduler::ExecutionRecord {
+            task_name: name.clone(),
+            status: crate::scheduler::task::TaskStatus::Running,
+            executed_at: started_at,
+            completed_at: None,
+            duration_ms: 0,
+            articles_count: 0,
+            error_message: None,
+            digest_content: None,
+        };
+        let row_id = match db.insert_record(&running_record) {
+            Ok(id) => Some(id),
+            Err(e) => {
+                tracing::error!("Failed to save running record to DB: {}", e);
+                None
+            }
+        };
+        {
+            let mut hist = history.write().await;
+            hist.push(running_record);
+        }
+
         let result = task.execute().await;
         let duration_ms = start.elapsed().as_millis() as u64;
+        let completed_at = chrono::Local::now();
 
         let record = match &result {
             Ok(stats) => {
@@ -95,6 +119,7 @@ pub async fn run_task(
                     task_name: name.clone(),
                     status: crate::scheduler::task::TaskStatus::Success,
                     executed_at: started_at,
+                    completed_at: Some(completed_at),
                     duration_ms,
                     articles_count: stats.articles_fetched,
                     error_message: None,
@@ -107,6 +132,7 @@ pub async fn run_task(
                     task_name: name.clone(),
                     status: crate::scheduler::task::TaskStatus::Failed,
                     executed_at: started_at,
+                    completed_at: Some(completed_at),
                     duration_ms,
                     articles_count: 0,
                     error_message: Some(e.to_string()),
@@ -115,13 +141,24 @@ pub async fn run_task(
             }
         };
 
-        // Save to database
-        if let Err(e) = db.insert_record(&record) {
-            tracing::error!("Failed to save execution record to DB: {}", e);
+        // Update the running record in database
+        if let Some(id) = row_id {
+            if let Err(e) = db.update_record(id, &record) {
+                tracing::error!("Failed to update execution record in DB: {}", e);
+            }
         }
 
+        // Replace the running record in memory
         let mut hist = history.write().await;
-        hist.push(record);
+        if let Some(pos) = hist.iter().position(|r| {
+            r.task_name == record.task_name
+                && r.executed_at == record.executed_at
+                && r.status == crate::scheduler::task::TaskStatus::Running
+        }) {
+            hist[pos] = record;
+        } else {
+            hist.push(record);
+        }
         if hist.len() > 100 {
             let len = hist.len();
             hist.drain(..len - 100);
@@ -286,6 +323,7 @@ pub struct HistoryEntry {
     pub task_name: String,
     pub status: String,
     pub executed_at: String,
+    pub completed_at: Option<String>,
     pub duration_ms: u64,
     pub articles_count: usize,
     pub error_message: Option<String>,
@@ -301,6 +339,7 @@ pub async fn get_history(State(state): State<Arc<AppState>>) -> Json<Vec<History
             task_name: r.task_name.clone(),
             status: format!("{:?}", r.status),
             executed_at: r.executed_at.to_rfc3339(),
+            completed_at: r.completed_at.map(|dt| dt.to_rfc3339()),
             duration_ms: r.duration_ms,
             articles_count: r.articles_count,
             error_message: r.error_message.clone(),

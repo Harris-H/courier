@@ -19,6 +19,7 @@ pub struct ExecutionRecord {
     pub task_name: String,
     pub status: TaskStatus,
     pub executed_at: chrono::DateTime<chrono::Local>,
+    pub completed_at: Option<chrono::DateTime<chrono::Local>>,
     pub duration_ms: u64,
     pub articles_count: usize,
     pub error_message: Option<String>,
@@ -154,8 +155,32 @@ async fn record_execution(
     let start = std::time::Instant::now();
     let started_at = chrono::Local::now();
 
+    // Insert a "Running" record immediately
+    let running_record = ExecutionRecord {
+        task_name: task.name.clone(),
+        status: TaskStatus::Running,
+        executed_at: started_at,
+        completed_at: None,
+        duration_ms: 0,
+        articles_count: 0,
+        error_message: None,
+        digest_content: None,
+    };
+    let row_id = match db.insert_record(&running_record) {
+        Ok(id) => Some(id),
+        Err(e) => {
+            error!("Failed to save running record to DB: {}", e);
+            None
+        }
+    };
+    {
+        let mut hist = history.write().await;
+        hist.push(running_record);
+    }
+
     let result = task.execute().await;
     let duration_ms = start.elapsed().as_millis() as u64;
+    let completed_at = chrono::Local::now();
 
     let record = match &result {
         Ok(stats) => {
@@ -167,6 +192,7 @@ async fn record_execution(
                 task_name: task.name.clone(),
                 status: TaskStatus::Success,
                 executed_at: started_at,
+                completed_at: Some(completed_at),
                 duration_ms,
                 articles_count: stats.articles_fetched,
                 error_message: None,
@@ -179,6 +205,7 @@ async fn record_execution(
                 task_name: task.name.clone(),
                 status: TaskStatus::Failed,
                 executed_at: started_at,
+                completed_at: Some(completed_at),
                 duration_ms,
                 articles_count: 0,
                 error_message: Some(e.to_string()),
@@ -187,13 +214,24 @@ async fn record_execution(
         }
     };
 
-    // Save to database
-    if let Err(e) = db.insert_record(&record) {
-        error!("Failed to save execution record to DB: {}", e);
+    // Update the running record in database
+    if let Some(id) = row_id {
+        if let Err(e) = db.update_record(id, &record) {
+            error!("Failed to update execution record in DB: {}", e);
+        }
     }
 
+    // Replace the running record in memory
     let mut hist = history.write().await;
-    hist.push(record);
+    if let Some(pos) = hist.iter().position(|r| {
+        r.task_name == record.task_name
+            && r.executed_at == record.executed_at
+            && r.status == TaskStatus::Running
+    }) {
+        hist[pos] = record;
+    } else {
+        hist.push(record);
+    }
     // Keep only last 100 records in memory
     let len = hist.len();
     if len > 100 {
