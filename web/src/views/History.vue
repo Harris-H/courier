@@ -10,6 +10,8 @@ const loadingContent = ref(false)
 const selectedItems = ref<Set<string>>(new Set())
 const showClearConfirm = ref(false)
 const deleting = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(15)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
@@ -47,15 +49,58 @@ function startPollingIfNeeded() {
   }, 3000)
 }
 
+// Pagination
+const totalPages = computed(() => Math.max(1, Math.ceil(store.history.length / pageSize.value)))
+const paginatedHistory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return store.history.slice(start, start + pageSize.value).map((entry, i) => ({
+    ...entry,
+    globalIndex: start + i, // keep original index for content API
+  }))
+})
+
+// Reset to page 1 when history changes significantly
+watch(() => store.history.length, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value
+  }
+})
+
+function goToPage(page: number) {
+  currentPage.value = Math.max(1, Math.min(page, totalPages.value))
+  expandedIndex.value = null
+}
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const pages: (number | '...')[] = []
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i)
+  } else {
+    pages.push(1)
+    if (current > 3) pages.push('...')
+    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+      pages.push(i)
+    }
+    if (current < total - 2) pages.push('...')
+    pages.push(total)
+  }
+  return pages
+})
+
 const allSelected = computed(() =>
-  store.history.length > 0 && selectedItems.value.size === store.history.length
+  paginatedHistory.value.length > 0 && paginatedHistory.value.every(e => selectedItems.value.has(e.executed_at))
 )
 
 function toggleSelectAll() {
   if (allSelected.value) {
-    selectedItems.value = new Set()
+    for (const e of paginatedHistory.value) {
+      selectedItems.value.delete(e.executed_at)
+    }
+    selectedItems.value = new Set(selectedItems.value)
   } else {
-    selectedItems.value = new Set(store.history.map(e => e.executed_at))
+    selectedItems.value = new Set([...selectedItems.value, ...paginatedHistory.value.map(e => e.executed_at)])
   }
 }
 
@@ -200,7 +245,7 @@ async function toggleContent(index: number) {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <template v-for="(entry, index) in store.history" :key="entry.executed_at">
+          <template v-for="entry in paginatedHistory" :key="entry.executed_at">
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3">
                 <input
@@ -242,20 +287,20 @@ async function toggleContent(index: number) {
                 </span>
                 <button
                   v-else-if="entry.has_content"
-                  @click="toggleContent(index)"
+                  @click="toggleContent(entry.globalIndex)"
                   class="text-blue-500 hover:text-blue-700 text-xs cursor-pointer underline"
                 >
-                  {{ expandedIndex === index ? '收起' : '查看内容' }}
+                  {{ expandedIndex === entry.globalIndex ? '收起' : '查看内容' }}
                 </button>
                 <span v-else class="text-gray-300">—</span>
               </td>
             </tr>
             <!-- Expanded content row -->
-            <tr v-if="expandedIndex === index">
+            <tr v-if="expandedIndex === entry.globalIndex">
               <td colspan="8" class="px-4 py-4 bg-gray-50">
                 <div v-if="loadingContent" class="text-gray-400 text-sm">加载中...</div>
-                <div v-else-if="contentCache[index]" class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
-                  {{ contentCache[index] }}
+                <div v-else-if="contentCache[entry.globalIndex]" class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-96 overflow-y-auto">
+                  {{ contentCache[entry.globalIndex] }}
                 </div>
                 <div v-else class="text-gray-400 text-sm">暂无内容</div>
               </td>
@@ -263,6 +308,40 @@ async function toggleContent(index: number) {
           </template>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+        <span class="text-xs text-gray-500">
+          共 {{ store.history.length }} 条，第 {{ currentPage }}/{{ totalPages }} 页
+        </span>
+        <div class="flex items-center gap-1">
+          <button
+            @click="goToPage(currentPage - 1)"
+            :disabled="currentPage <= 1"
+            class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            ‹
+          </button>
+          <template v-for="p in visiblePages" :key="p">
+            <span v-if="p === '...'" class="px-1 text-xs text-gray-400">…</span>
+            <button
+              v-else
+              @click="goToPage(p as number)"
+              :class="p === currentPage ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-100'"
+              class="px-2.5 py-1 text-xs rounded border cursor-pointer"
+            >
+              {{ p }}
+            </button>
+          </template>
+          <button
+            @click="goToPage(currentPage + 1)"
+            :disabled="currentPage >= totalPages"
+            class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            ›
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
