@@ -47,7 +47,10 @@ Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
 
 ```bash
 cp config.example.toml config.toml
+cp deploy/docker-compose.example.yml deploy/docker-compose.yml
+cp deploy/docker-compose.dev.example.yml deploy/docker-compose.dev.yml
 # 编辑 config.toml，填入你的 API keys
+# 编辑 docker-compose 文件，添加 token（如 GITHUB_ACCESS_TOKEN）
 ```
 
 ### 2. 运行

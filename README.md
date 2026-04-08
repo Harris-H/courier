@@ -47,7 +47,10 @@ Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
 
 ```bash
 cp config.example.toml config.toml
+cp deploy/docker-compose.example.yml deploy/docker-compose.yml
+cp deploy/docker-compose.dev.example.yml deploy/docker-compose.dev.yml
 # Edit config.toml with your API keys and preferences
+# Edit docker-compose files to add tokens (e.g., GITHUB_ACCESS_TOKEN)
 ```
 
 ### 2. Run

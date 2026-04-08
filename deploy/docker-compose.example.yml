@@ -22,6 +22,9 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - CACHE_EXPIRE=3600
+      # GitHub Trending support: create a Personal Access Token (no scopes needed)
+      # See: https://github.com/settings/tokens
+      # - GITHUB_ACCESS_TOKEN=your_github_pat_here
       # Twitter/X support: set your auth token from browser cookies
       # See: https://docs.rsshub.app/deploy/config#twitter
       # - TWITTER_AUTH_TOKEN=your_twitter_auth_token_here

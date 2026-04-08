@@ -8,6 +8,9 @@ Set-Location $ProjectRoot
 # Fix console encoding for emoji display
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Bypass proxy for localhost (RSSHub at localhost:1200)
+$env:NO_PROXY = "localhost,127.0.0.1"
+
 # Prevent PowerShell from treating native command stderr as errors
 $ErrorActionPreference = "Continue"
 if ($null -ne (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue)) {

@@ -7,3 +7,5 @@ config.dev.toml
 data/
 *.tar
 *.tar.gz
+deploy/docker-compose.yml
+deploy/docker-compose.dev.yml
