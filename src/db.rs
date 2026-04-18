@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use rusqlite::{params, Connection};
 use tracing::info;
 
-use crate::scheduler::{ExecutionRecord, task::TaskStatus};
+use crate::scheduler::{task::TaskStatus, ExecutionRecord};
 
 pub struct Database {
     conn: Mutex<Connection>,
@@ -34,9 +34,7 @@ impl Database {
             .prepare("SELECT completed_at FROM execution_history LIMIT 0")
             .is_ok();
         if !has_completed_at {
-            conn.execute_batch(
-                "ALTER TABLE execution_history ADD COLUMN completed_at TEXT",
-            )?;
+            conn.execute_batch("ALTER TABLE execution_history ADD COLUMN completed_at TEXT")?;
             // Backfill: set completed_at = executed_at for existing records
             conn.execute_batch(
                 "UPDATE execution_history SET completed_at = executed_at WHERE completed_at IS NULL",
@@ -51,7 +49,9 @@ impl Database {
 
     /// Insert a record and return its row ID
     pub fn insert_record(&self, record: &ExecutionRecord) -> anyhow::Result<i64> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         conn.execute(
             "INSERT INTO execution_history (task_name, status, executed_at, completed_at, duration_ms, articles_count, error_message, digest_content)
@@ -72,7 +72,9 @@ impl Database {
 
     /// Update an existing record by row ID (used to transition Running → Success/Failed)
     pub fn update_record(&self, id: i64, record: &ExecutionRecord) -> anyhow::Result<()> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         conn.execute(
             "UPDATE execution_history SET status = ?1, completed_at = ?2, duration_ms = ?3, articles_count = ?4, error_message = ?5, digest_content = ?6 WHERE id = ?7",
@@ -90,7 +92,9 @@ impl Database {
     }
 
     pub fn get_history(&self, limit: usize) -> anyhow::Result<Vec<ExecutionRecord>> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         let mut stmt = conn.prepare(
             "SELECT task_name, status, executed_at, duration_ms, articles_count, error_message, digest_content, completed_at
@@ -136,7 +140,9 @@ impl Database {
 
     #[allow(dead_code)]
     pub fn get_record_content(&self, id: i64) -> anyhow::Result<Option<String>> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         let content = conn
             .query_row(
@@ -149,20 +155,31 @@ impl Database {
     }
 
     pub fn delete_history_by_timestamps(&self, timestamps: &[String]) -> anyhow::Result<usize> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
-        let placeholders: Vec<String> = timestamps.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+        let placeholders: Vec<String> = timestamps
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 1))
+            .collect();
         let sql = format!(
             "DELETE FROM execution_history WHERE executed_at IN ({})",
             placeholders.join(", ")
         );
-        let params: Vec<&dyn rusqlite::types::ToSql> = timestamps.iter().map(|t| t as &dyn rusqlite::types::ToSql).collect();
+        let params: Vec<&dyn rusqlite::types::ToSql> = timestamps
+            .iter()
+            .map(|t| t as &dyn rusqlite::types::ToSql)
+            .collect();
         let deleted = conn.execute(&sql, params.as_slice())?;
         Ok(deleted)
     }
 
     pub fn clear_all_history(&self) -> anyhow::Result<usize> {
-        let conn = self.conn.lock()
+        let conn = self
+            .conn
+            .lock()
             .map_err(|e| anyhow::anyhow!("Database lock poisoned: {}", e))?;
         let deleted = conn.execute("DELETE FROM execution_history", [])?;
         Ok(deleted)

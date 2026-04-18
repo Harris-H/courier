@@ -43,7 +43,7 @@ feeds = [
     # { name = "GitHub Trending", url = "http://rsshub:1200/github/trending/daily/any/en" },
     # { name = "Reddit ML", url = "http://rsshub:1200/reddit/subreddit/MachineLearning" },
     # { name = "Product Hunt", url = "http://rsshub:1200/producthunt/today" },
-    # { name = "V2EX Hot", url = "http://rsshub:1200/v2ex/topics/hot" },
+    # { name = "V2EX Hot", url = "https://www.v2ex.com/feed/tab/hot.xml" },  # V2EX has native RSS, no need for RSSHub
     # { name = "36kr News", url = "http://rsshub:1200/36kr/news/latest" },
     # --- Twitter/X 示例 (需配置 TWITTER_AUTH_TOKEN, 参见 docker-compose.yml) ---
     # { name = "Twitter: Elon Musk", url = "http://rsshub:1200/twitter/user/elonmusk/exclude_rts/true" },

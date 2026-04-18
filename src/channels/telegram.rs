@@ -82,11 +82,9 @@ fn split_message(text: &str, max_len: usize) -> Vec<String> {
     let mut current = String::new();
 
     for line in text.lines() {
-        if current.len() + line.len() + 1 > max_len {
-            if !current.is_empty() {
-                chunks.push(current);
-                current = String::new();
-            }
+        if current.len() + line.len() + 1 > max_len && !current.is_empty() {
+            chunks.push(current);
+            current = String::new();
         }
         if !current.is_empty() {
             current.push('\n');
@@ -99,4 +97,68 @@ fn split_message(text: &str, max_len: usize) -> Vec<String> {
     }
 
     chunks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_message_short_text_returns_single_chunk() {
+        let text = "Hello, world!";
+        let chunks = split_message(text, 4096);
+        assert_eq!(chunks, vec!["Hello, world!"]);
+    }
+
+    #[test]
+    fn split_message_exact_limit_returns_single_chunk() {
+        let text = "a".repeat(4096);
+        let chunks = split_message(&text, 4096);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].len(), 4096);
+    }
+
+    #[test]
+    fn split_message_exceeds_limit_splits_at_line_boundary() {
+        let lines: Vec<String> = (0..100)
+            .map(|i| format!("Line {}: some content here", i))
+            .collect();
+        let text = lines.join("\n");
+        let chunks = split_message(&text, 200);
+
+        // Every chunk should be within the limit
+        for chunk in &chunks {
+            assert!(chunk.len() <= 200, "Chunk too long: {} chars", chunk.len());
+        }
+
+        // Rejoined content should equal original
+        let rejoined = chunks.join("\n");
+        assert_eq!(rejoined, text);
+    }
+
+    #[test]
+    fn split_message_empty_text_returns_single_empty_chunk() {
+        let chunks = split_message("", 4096);
+        // Empty string has one empty line, which produces one empty chunk
+        assert_eq!(chunks, vec![""]);
+    }
+
+    #[test]
+    fn split_message_preserves_all_lines() {
+        let text = "Line 1\nLine 2\nLine 3";
+        let chunks = split_message(text, 4096);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0], text);
+    }
+
+    #[test]
+    fn split_message_single_long_line_becomes_own_chunk() {
+        // A single line longer than max_len — it must still appear in output
+        let long_line = "x".repeat(5000);
+        let text = format!("short\n{}\nshort2", long_line);
+        let chunks = split_message(&text, 4096);
+        assert!(chunks.len() >= 2);
+        // The long line should exist in exactly one chunk
+        assert!(chunks.iter().any(|c| c.contains(&long_line)));
+    }
 }

@@ -53,18 +53,27 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/status", get(routes::get_status))
         .route("/api/tasks", get(routes::list_tasks))
         .route("/api/tasks/{name}/run", post(routes::run_task))
-        .route("/api/tasks/{name}/schedule", put(routes::update_task_schedule))
+        .route(
+            "/api/tasks/{name}/schedule",
+            put(routes::update_task_schedule),
+        )
         .route("/api/tasks/{name}/toggle", put(routes::toggle_task))
         .route("/api/history", get(routes::get_history))
         .route("/api/history/clear", delete(routes::clear_history))
         .route("/api/history/batch", post(routes::delete_history))
-        .route("/api/history/{index}/content", get(routes::get_history_content))
+        .route(
+            "/api/history/{index}/content",
+            get(routes::get_history_content),
+        )
         .route("/api/config", get(routes::get_config))
         .route("/api/config/feishu", put(routes::update_feishu_config))
         .route("/api/config/email", put(routes::update_email_config))
         .route("/api/config/llm", put(routes::update_llm_config))
         .route("/api/sources", get(routes::list_sources))
-        .layer(middleware::from_fn_with_state(state.clone(), auth_middleware))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ))
         .layer(cors)
         .with_state(state);
 

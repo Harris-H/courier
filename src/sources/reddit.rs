@@ -42,22 +42,27 @@ impl Source for RedditSource {
 
             debug!("Fetching r/{} via Atom feed", subreddit);
 
-            let response = self
-                .client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| CourierError::SourceFetch {
-                    origin: format!("reddit/r/{}", subreddit),
-                    message: format!("request failed: {}", e),
-                })?;
+            let response =
+                self.client
+                    .get(&url)
+                    .send()
+                    .await
+                    .map_err(|e| CourierError::SourceFetch {
+                        origin: format!("reddit/r/{}", subreddit),
+                        message: format!("request failed: {}", e),
+                    })?;
 
             if !response.status().is_success() {
-                warn!("Reddit r/{} returned status {}, skipping", subreddit, response.status());
+                warn!(
+                    "Reddit r/{} returned status {}, skipping",
+                    subreddit,
+                    response.status()
+                );
                 continue;
             }
 
-            let body = response.text()
+            let body = response
+                .text()
                 .await
                 .map_err(|e| CourierError::SourceFetch {
                     origin: format!("reddit/r/{}", subreddit),
@@ -66,7 +71,12 @@ impl Source for RedditSource {
 
             // Reddit returns Atom XML, not RSS 2.0
             let feed = body.parse::<atom_syndication::Feed>().map_err(|e| {
-                warn!("Reddit r/{} Atom parse error: {}. Body preview: {}", subreddit, e, &body[..body.len().min(300)]);
+                warn!(
+                    "Reddit r/{} Atom parse error: {}. Body preview: {}",
+                    subreddit,
+                    e,
+                    &body[..body.len().min(300)]
+                );
                 CourierError::SourceFetch {
                     origin: format!("reddit/r/{}", subreddit),
                     message: format!("Atom parse error: {}", e),
@@ -83,7 +93,8 @@ impl Source for RedditSource {
                 let link = entry.links().first().map(|l| l.href().to_string());
 
                 // Extract text from HTML content
-                let summary = entry.content()
+                let summary = entry
+                    .content()
                     .and_then(|c| c.value())
                     .or_else(|| entry.summary().map(|s| s.as_str()))
                     .and_then(|html| {
@@ -92,7 +103,9 @@ impl Source for RedditSource {
                             .text()
                             .collect::<String>();
                         let trimmed = text.trim().to_string();
-                        if trimmed.is_empty() { None } else {
+                        if trimmed.is_empty() {
+                            None
+                        } else {
                             // Truncate long summaries
                             Some(if trimmed.len() > 500 {
                                 format!("{}...", &trimmed[..500])
@@ -113,7 +126,11 @@ impl Source for RedditSource {
                 });
             }
 
-            debug!("r/{}: fetched {} articles", subreddit, articles.len() - count_before);
+            debug!(
+                "r/{}: fetched {} articles",
+                subreddit,
+                articles.len() - count_before
+            );
         }
 
         if articles.is_empty() {

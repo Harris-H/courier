@@ -22,20 +22,34 @@ impl EmailChannel {
         Self { config }
     }
 
-    fn build_transport(config: &EmailConfig) -> std::result::Result<AsyncSmtpTransport<Tokio1Executor>, lettre::transport::smtp::Error> {
-        let creds = Credentials::new(
-            config.smtp_username.clone(),
-            config.smtp_password.clone(),
-        );
+    fn build_transport(
+        config: &EmailConfig,
+    ) -> std::result::Result<AsyncSmtpTransport<Tokio1Executor>, lettre::transport::smtp::Error>
+    {
+        let creds = Credentials::new(config.smtp_username.clone(), config.smtp_password.clone());
 
-        Ok(AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host)?
-            .port(config.smtp_port)
-            .credentials(creds)
-            .build())
+        Ok(
+            AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host)?
+                .port(config.smtp_port)
+                .credentials(creds)
+                .build(),
+        )
     }
 
     /// Build the from address: if no '@' in `from`, auto-construct "Name <smtp_username>"
     fn resolve_from(config: &EmailConfig) -> String {
+        Self::resolve_from_static(config)
+    }
+
+    fn markdown_to_html(md: &str) -> String {
+        let parser = Parser::new(md);
+        let mut html_output = String::new();
+        html::push_html(&mut html_output, parser);
+        html_output
+    }
+
+    /// Resolve the "from" address for email construction (public for testing)
+    pub(crate) fn resolve_from_static(config: &EmailConfig) -> String {
         let from = config.from.trim();
         if from.is_empty() {
             config.smtp_username.clone()
@@ -44,13 +58,6 @@ impl EmailChannel {
         } else {
             format!("{} <{}>", from, config.smtp_username)
         }
-    }
-
-    fn markdown_to_html(md: &str) -> String {
-        let parser = Parser::new(md);
-        let mut html_output = String::new();
-        html::push_html(&mut html_output, parser);
-        html_output
     }
 }
 
@@ -92,18 +99,24 @@ ul, ol {{ padding-left: 20px; }}
             info!("Sending email to {}", recipient);
 
             let email = Message::builder()
-                .from(from_addr.parse().map_err(|e: lettre::address::AddressError| {
-                    CourierError::ChannelSend {
-                        channel: "email".into(),
-                        message: format!("Invalid from address '{}': {}", from_addr, e),
-                    }
-                })?)
-                .to(recipient.parse().map_err(|e: lettre::address::AddressError| {
-                    CourierError::ChannelSend {
-                        channel: "email".into(),
-                        message: format!("Invalid recipient '{}': {}", recipient, e),
-                    }
-                })?)
+                .from(
+                    from_addr
+                        .parse()
+                        .map_err(
+                            |e: lettre::address::AddressError| CourierError::ChannelSend {
+                                channel: "email".into(),
+                                message: format!("Invalid from address '{}': {}", from_addr, e),
+                            },
+                        )?,
+                )
+                .to(recipient
+                    .parse()
+                    .map_err(
+                        |e: lettre::address::AddressError| CourierError::ChannelSend {
+                            channel: "email".into(),
+                            message: format!("Invalid recipient '{}': {}", recipient, e),
+                        },
+                    )?)
                 .subject(title)
                 .header(ContentType::TEXT_HTML)
                 .body(html_content.clone())
@@ -112,12 +125,85 @@ ul, ol {{ padding-left: 20px; }}
                     message: e.to_string(),
                 })?;
 
-            transport.send(email).await.map_err(|e| CourierError::ChannelSend {
-                channel: "email".into(),
-                message: e.to_string(),
-            })?;
+            transport
+                .send(email)
+                .await
+                .map_err(|e| CourierError::ChannelSend {
+                    channel: "email".into(),
+                    message: e.to_string(),
+                })?;
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_email_config(from: &str, username: &str) -> EmailConfig {
+        EmailConfig {
+            from: from.to_string(),
+            smtp_username: username.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn resolve_from_empty_uses_smtp_username() {
+        let config = make_email_config("", "bot@smtp.example.com");
+        assert_eq!(
+            EmailChannel::resolve_from_static(&config),
+            "bot@smtp.example.com"
+        );
+    }
+
+    #[test]
+    fn resolve_from_with_at_sign_uses_as_is() {
+        let config = make_email_config("custom@example.com", "bot@smtp.example.com");
+        assert_eq!(
+            EmailChannel::resolve_from_static(&config),
+            "custom@example.com"
+        );
+    }
+
+    #[test]
+    fn resolve_from_display_name_constructs_full_address() {
+        let config = make_email_config("Courier Bot", "bot@smtp.example.com");
+        assert_eq!(
+            EmailChannel::resolve_from_static(&config),
+            "Courier Bot <bot@smtp.example.com>"
+        );
+    }
+
+    #[test]
+    fn resolve_from_trims_whitespace() {
+        let config = make_email_config("  ", "bot@smtp.example.com");
+        assert_eq!(
+            EmailChannel::resolve_from_static(&config),
+            "bot@smtp.example.com"
+        );
+    }
+
+    #[test]
+    fn markdown_to_html_converts_heading() {
+        let html = EmailChannel::markdown_to_html("# Hello");
+        assert!(html.contains("<h1>Hello</h1>"));
+    }
+
+    #[test]
+    fn markdown_to_html_converts_bold_and_links() {
+        let html = EmailChannel::markdown_to_html("**bold** and [link](https://example.com)");
+        assert!(html.contains("<strong>bold</strong>"));
+        assert!(html.contains("href=\"https://example.com\""));
+    }
+
+    #[test]
+    fn markdown_to_html_converts_list() {
+        let html = EmailChannel::markdown_to_html("- item 1\n- item 2");
+        assert!(html.contains("<li>"));
+        assert!(html.contains("item 1"));
+        assert!(html.contains("item 2"));
     }
 }

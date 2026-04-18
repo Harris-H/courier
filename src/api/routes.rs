@@ -113,7 +113,10 @@ pub async fn run_task(
             Ok(stats) => {
                 tracing::info!(
                     "✅ Manual task '{}' completed in {}ms ({} articles, {} chars)",
-                    name, duration_ms, stats.articles_fetched, stats.digest_length
+                    name,
+                    duration_ms,
+                    stats.articles_fetched,
+                    stats.digest_length
                 );
                 crate::scheduler::ExecutionRecord {
                     task_name: name.clone(),
@@ -127,7 +130,12 @@ pub async fn run_task(
                 }
             }
             Err(e) => {
-                tracing::error!("❌ Manual task '{}' failed after {}ms: {}", name, duration_ms, e);
+                tracing::error!(
+                    "❌ Manual task '{}' failed after {}ms: {}",
+                    name,
+                    duration_ms,
+                    e
+                );
                 crate::scheduler::ExecutionRecord {
                     task_name: name.clone(),
                     status: crate::scheduler::task::TaskStatus::Failed,
@@ -229,12 +237,18 @@ pub async fn update_task_schedule(
                         table.insert("cron".to_string(), toml::Value::String(cron.clone()));
                     }
                     if let Some(retries) = req.max_retries {
-                        table.insert("max_retries".to_string(), toml::Value::Integer(retries as i64));
+                        table.insert(
+                            "max_retries".to_string(),
+                            toml::Value::Integer(retries as i64),
+                        );
                     }
                     if let Some(channels) = &req.channels {
-                        table.insert("channels".to_string(), toml::Value::Array(
-                            channels.iter().cloned().map(toml::Value::String).collect()
-                        ));
+                        table.insert(
+                            "channels".to_string(),
+                            toml::Value::Array(
+                                channels.iter().cloned().map(toml::Value::String).collect(),
+                            ),
+                        );
                     }
                 }
             }
@@ -252,7 +266,9 @@ pub async fn update_task_schedule(
     })?;
 
     // Determine the effective name after possible rename
-    let effective_name = req.name.as_deref()
+    let effective_name = req
+        .name
+        .as_deref()
         .filter(|n| !n.is_empty())
         .unwrap_or(&name);
 
@@ -282,7 +298,13 @@ pub async fn update_task_schedule(
         if let Some(task) = state.tasks.iter().find(|t| t.name == effective_name) {
             let new_channels: Vec<Arc<dyn crate::channels::Channel>> = channel_names
                 .iter()
-                .filter_map(|name| state.channels.iter().find(|c| c.name() == name.as_str()).cloned())
+                .filter_map(|name| {
+                    state
+                        .channels
+                        .iter()
+                        .find(|c| c.name() == name.as_str())
+                        .cloned()
+                })
                 .collect();
             let mut task_channels = task.channels.write().await;
             *task_channels = new_channels;
@@ -310,7 +332,11 @@ pub async fn update_task_schedule(
         }
     }
 
-    tracing::info!("Schedule '{}' updated (effective name: '{}')", name, effective_name);
+    tracing::info!(
+        "Schedule '{}' updated (effective name: '{}')",
+        name,
+        effective_name
+    );
 
     Ok(Json(UpdateConfigResponse {
         success: true,
@@ -387,10 +413,13 @@ pub async fn delete_history(
     }
 
     // Delete from database
-    let deleted = state.db.delete_history_by_timestamps(&req.timestamps).map_err(|e| {
-        tracing::error!("Failed to delete history: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let deleted = state
+        .db
+        .delete_history_by_timestamps(&req.timestamps)
+        .map_err(|e| {
+            tracing::error!("Failed to delete history: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     // Remove from in-memory history
     {
@@ -572,11 +601,17 @@ pub async fn update_feishu_config(
     if let Some(channels) = doc.get_mut("channels").and_then(|c| c.as_table_mut()) {
         if let Some(feishu) = channels.get_mut("feishu").and_then(|f| f.as_table_mut()) {
             feishu.insert("enabled".to_string(), toml::Value::Boolean(req.enabled));
-            feishu.insert("webhook_url".to_string(), toml::Value::String(req.webhook_url));
+            feishu.insert(
+                "webhook_url".to_string(),
+                toml::Value::String(req.webhook_url),
+            );
         } else {
             let mut feishu_table = toml::map::Map::new();
             feishu_table.insert("enabled".to_string(), toml::Value::Boolean(req.enabled));
-            feishu_table.insert("webhook_url".to_string(), toml::Value::String(req.webhook_url));
+            feishu_table.insert(
+                "webhook_url".to_string(),
+                toml::Value::String(req.webhook_url),
+            );
             channels.insert("feishu".to_string(), toml::Value::Table(feishu_table));
         }
     }
@@ -641,22 +676,39 @@ pub async fn update_email_config(
     };
 
     if let Some(channels) = doc.get_mut("channels").and_then(|c| c.as_table_mut()) {
-        let email_table = if let Some(email) = channels.get_mut("email").and_then(|e| e.as_table_mut()) {
-            email
-        } else {
-            channels.insert("email".to_string(), toml::Value::Table(toml::map::Map::new()));
-            channels.get_mut("email").unwrap().as_table_mut().unwrap()
-        };
+        let email_table =
+            if let Some(email) = channels.get_mut("email").and_then(|e| e.as_table_mut()) {
+                email
+            } else {
+                channels.insert(
+                    "email".to_string(),
+                    toml::Value::Table(toml::map::Map::new()),
+                );
+                channels.get_mut("email").unwrap().as_table_mut().unwrap()
+            };
 
         email_table.insert("enabled".to_string(), toml::Value::Boolean(req.enabled));
-        email_table.insert("smtp_host".to_string(), toml::Value::String(req.smtp_host.clone()));
-        email_table.insert("smtp_port".to_string(), toml::Value::Integer(req.smtp_port as i64));
-        email_table.insert("smtp_username".to_string(), toml::Value::String(req.smtp_username.clone()));
-        email_table.insert("smtp_password".to_string(), toml::Value::String(effective_password.clone()));
+        email_table.insert(
+            "smtp_host".to_string(),
+            toml::Value::String(req.smtp_host.clone()),
+        );
+        email_table.insert(
+            "smtp_port".to_string(),
+            toml::Value::Integer(req.smtp_port as i64),
+        );
+        email_table.insert(
+            "smtp_username".to_string(),
+            toml::Value::String(req.smtp_username.clone()),
+        );
+        email_table.insert(
+            "smtp_password".to_string(),
+            toml::Value::String(effective_password.clone()),
+        );
         email_table.insert("from".to_string(), toml::Value::String(req.from.clone()));
-        email_table.insert("to".to_string(), toml::Value::Array(
-            req.to.iter().cloned().map(toml::Value::String).collect()
-        ));
+        email_table.insert(
+            "to".to_string(),
+            toml::Value::Array(req.to.iter().cloned().map(toml::Value::String).collect()),
+        );
     }
 
     let new_content = toml::to_string_pretty(&doc).map_err(|e| {
@@ -681,7 +733,10 @@ pub async fn update_email_config(
         email_cfg.to = req.to;
     }
 
-    tracing::info!("Email config updated and hot-reloaded (enabled: {})", req.enabled);
+    tracing::info!(
+        "Email config updated and hot-reloaded (enabled: {})",
+        req.enabled
+    );
 
     Ok(Json(UpdateConfigResponse {
         success: true,
@@ -811,7 +866,10 @@ pub async fn update_llm_config(
     if let Some(llm) = doc.get_mut("llm").and_then(|l| l.as_table_mut()) {
         llm.insert("model".to_string(), toml::Value::String(req.model.clone()));
         if let Some(max_tokens) = req.max_tokens {
-            llm.insert("max_tokens".to_string(), toml::Value::Integer(max_tokens as i64));
+            llm.insert(
+                "max_tokens".to_string(),
+                toml::Value::Integer(max_tokens as i64),
+            );
         }
     }
 
@@ -827,7 +885,11 @@ pub async fn update_llm_config(
 
     let mut msg_parts = vec![format!("模型已切换为 {}", req.model)];
     if let Some(max_tokens) = req.max_tokens {
-        tracing::info!("LLM config updated: model={}, max_tokens={}", req.model, max_tokens);
+        tracing::info!(
+            "LLM config updated: model={}, max_tokens={}",
+            req.model,
+            max_tokens
+        );
         msg_parts.push(format!("max_tokens={}", max_tokens));
     } else {
         tracing::info!("LLM model updated to: {}", req.model);

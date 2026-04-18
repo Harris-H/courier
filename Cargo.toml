@@ -57,3 +57,6 @@ url = { version = "2", features = ["serde"] }
 # Database
 rusqlite = { version = "0.35", features = ["bundled"] }
 pulldown-cmark = "0.13.1"
+
+[dev-dependencies]
+tempfile = "3"

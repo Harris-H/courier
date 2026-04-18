@@ -71,22 +71,18 @@ impl RssSource {
 
         warn!(
             "RSS feed '{}' failed after {} retries, skipping",
-            feed_entry.name,
-            MAX_RETRIES
+            feed_entry.name, MAX_RETRIES
         );
         Vec::new()
     }
 
     async fn fetch_single_feed(&self, feed_entry: &RssFeedEntry) -> Result<Vec<Article>> {
-        let response = self
-            .client
-            .get(&feed_entry.url)
-            .send()
-            .await
-            .map_err(|e| crate::error::CourierError::SourceFetch {
+        let response = self.client.get(&feed_entry.url).send().await.map_err(|e| {
+            crate::error::CourierError::SourceFetch {
                 origin: feed_entry.name.clone(),
                 message: e.to_string(),
-            })?;
+            }
+        })?;
 
         let status = response.status();
         let content_type = response
@@ -186,10 +182,7 @@ impl RssSource {
                 );
                 Err(crate::error::CourierError::SourceFetch {
                     origin: feed_entry.name.clone(),
-                    message: format!(
-                        "not valid RSS or Atom: {}",
-                        atom_err
-                    ),
+                    message: format!("not valid RSS or Atom: {}", atom_err),
                 })
             }
         }

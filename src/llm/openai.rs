@@ -1,8 +1,8 @@
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-        ChatCompletionRequestUserMessage, ChatCompletionRequestAssistantMessage,
+        ChatCompletionRequestAssistantMessage, ChatCompletionRequestMessage,
+        ChatCompletionRequestSystemMessage, ChatCompletionRequestUserMessage,
         CreateChatCompletionRequestArgs,
     },
     Client,
@@ -62,15 +62,12 @@ impl LlmClient for OpenAIClient {
             .model(&self.model)
             .max_tokens(self.max_tokens as u16)
             .messages(vec![
-                ChatCompletionRequestMessage::System(
-                    ChatCompletionRequestSystemMessage::from(system),
-                ),
-                ChatCompletionRequestMessage::User(
-                    ChatCompletionRequestUserMessage::from(format!(
-                        "请整理以下新闻列表为日报摘要：\n\n{}",
-                        content
-                    )),
-                ),
+                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage::from(
+                    system,
+                )),
+                ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage::from(
+                    format!("请整理以下新闻列表为日报摘要：\n\n{}", content),
+                )),
             ])
             .build()
             .map_err(|e| CourierError::Llm(e.to_string()))?;
@@ -92,13 +89,12 @@ impl LlmClient for OpenAIClient {
     }
 
     async fn chat(&self, message: &str, history: &[(String, String)]) -> Result<String> {
-        let mut messages: Vec<ChatCompletionRequestMessage> = vec![
-            ChatCompletionRequestMessage::System(
+        let mut messages: Vec<ChatCompletionRequestMessage> =
+            vec![ChatCompletionRequestMessage::System(
                 ChatCompletionRequestSystemMessage::from(
                     "你是 Courier Bot，一个友好的个人助手。你可以帮助用户获取新闻摘要、回答问题。",
                 ),
-            ),
-        ];
+            )];
 
         // Add conversation history
         for (user_msg, assistant_msg) in history {

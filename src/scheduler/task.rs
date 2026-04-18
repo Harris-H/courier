@@ -244,3 +244,88 @@ impl DigestTask {
         (sent, failed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_article(title: &str, source: &str) -> Article {
+        Article {
+            title: title.to_string(),
+            url: Some("https://example.com".to_string()),
+            source: source.to_string(),
+            summary: None,
+            score: None,
+            comments_count: None,
+            published_at: None,
+        }
+    }
+
+    #[test]
+    fn format_articles_includes_title_and_source() {
+        let articles = vec![make_article("Rust 2026", "Hacker News")];
+        let formatted = DigestTask::format_articles(&articles);
+        assert!(formatted.contains("Rust 2026"));
+        assert!(formatted.contains("[Hacker News]"));
+    }
+
+    #[test]
+    fn format_articles_includes_url() {
+        let articles = vec![make_article("Test", "HN")];
+        let formatted = DigestTask::format_articles(&articles);
+        assert!(formatted.contains("URL: https://example.com"));
+    }
+
+    #[test]
+    fn format_articles_includes_score_and_comments() {
+        let articles = vec![Article {
+            title: "Hot Post".to_string(),
+            url: None,
+            source: "HN".to_string(),
+            summary: None,
+            score: Some(256),
+            comments_count: Some(42),
+            published_at: None,
+        }];
+        let formatted = DigestTask::format_articles(&articles);
+        assert!(formatted.contains("Score: 256"));
+        assert!(formatted.contains("Comments: 42"));
+    }
+
+    #[test]
+    fn format_articles_truncates_long_summary() {
+        let long_summary = "x".repeat(300);
+        let articles = vec![Article {
+            title: "Test".to_string(),
+            url: None,
+            source: "HN".to_string(),
+            summary: Some(long_summary.clone()),
+            score: None,
+            comments_count: None,
+            published_at: None,
+        }];
+        let formatted = DigestTask::format_articles(&articles);
+        // Summary should be truncated to 200 chars
+        assert!(formatted.contains(&"x".repeat(200)));
+        assert!(!formatted.contains(&"x".repeat(300)));
+    }
+
+    #[test]
+    fn format_articles_numbers_sequentially() {
+        let articles = vec![
+            make_article("First", "A"),
+            make_article("Second", "B"),
+            make_article("Third", "C"),
+        ];
+        let formatted = DigestTask::format_articles(&articles);
+        assert!(formatted.contains("1. [A] First"));
+        assert!(formatted.contains("2. [B] Second"));
+        assert!(formatted.contains("3. [C] Third"));
+    }
+
+    #[test]
+    fn format_articles_empty_returns_empty_string() {
+        let formatted = DigestTask::format_articles(&[]);
+        assert!(formatted.is_empty());
+    }
+}

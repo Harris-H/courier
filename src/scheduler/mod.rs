@@ -36,7 +36,11 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub async fn new(history: Arc<RwLock<Vec<ExecutionRecord>>>, db: Arc<Database>, timezone: Tz) -> Result<Self> {
+    pub async fn new(
+        history: Arc<RwLock<Vec<ExecutionRecord>>>,
+        db: Arc<Database>,
+        timezone: Tz,
+    ) -> Result<Self> {
         let inner = JobScheduler::new().await?;
         Ok(Self {
             inner,
@@ -62,7 +66,10 @@ impl Scheduler {
             let history_clone = history.clone();
             let db_clone = db.clone();
             tokio::spawn(async move {
-                info!("Running '{}' immediately (run_on_start=true)", task_clone.name);
+                info!(
+                    "Running '{}' immediately (run_on_start=true)",
+                    task_clone.name
+                );
                 record_execution(&task_clone, &history_clone, &db_clone).await;
             });
         }
@@ -81,8 +88,14 @@ impl Scheduler {
 
         let uuid = self.inner.add(job).await?;
         self.job_ids.write().await.insert(name.clone(), uuid);
-        self.tasks.write().await.insert(name.clone(), task_for_store);
-        info!("📅 Scheduled '{}' → cron '{}' (timezone: {})", name, cron, self.timezone);
+        self.tasks
+            .write()
+            .await
+            .insert(name.clone(), task_for_store);
+        info!(
+            "📅 Scheduled '{}' → cron '{}' (timezone: {})",
+            name, cron, self.timezone
+        );
         Ok(())
     }
 
@@ -100,7 +113,12 @@ impl Scheduler {
         }
 
         // Get the existing task
-        let task = self.tasks.read().await.get(task_name).cloned()
+        let task = self
+            .tasks
+            .read()
+            .await
+            .get(task_name)
+            .cloned()
             .ok_or_else(|| anyhow::anyhow!("Task '{}' not found", task_name))?;
 
         let name = task_name.to_string();
@@ -186,7 +204,11 @@ async fn record_execution(
         Ok(stats) => {
             info!(
                 "✅ Task '{}' completed in {}ms ({} articles, {} channels ok, {} failed)",
-                task.name, duration_ms, stats.articles_fetched, stats.channels_sent, stats.channels_failed
+                task.name,
+                duration_ms,
+                stats.articles_fetched,
+                stats.channels_sent,
+                stats.channels_failed
             );
             ExecutionRecord {
                 task_name: task.name.clone(),
@@ -200,7 +222,10 @@ async fn record_execution(
             }
         }
         Err(e) => {
-            error!("❌ Task '{}' failed after {}ms: {}", task.name, duration_ms, e);
+            error!(
+                "❌ Task '{}' failed after {}ms: {}",
+                task.name, duration_ms, e
+            );
             ExecutionRecord {
                 task_name: task.name.clone(),
                 status: TaskStatus::Failed,

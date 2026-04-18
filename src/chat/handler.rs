@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::llm::LlmClient;
-use crate::sources::Source;
+use courier::llm::LlmClient;
+use courier::sources::Source;
 
 /// Handles chat commands and conversations
 pub struct ChatHandler {
@@ -87,7 +87,11 @@ impl ChatHandler {
     }
 
     fn list_sources(&self) -> String {
-        let sources: Vec<String> = self.sources.iter().map(|s| format!("• {}", s.name())).collect();
+        let sources: Vec<String> = self
+            .sources
+            .iter()
+            .map(|s| format!("• {}", s.name()))
+            .collect();
         format!("📰 已启用的数据源：\n{}", sources.join("\n"))
     }
 }

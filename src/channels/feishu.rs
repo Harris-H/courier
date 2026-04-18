@@ -95,3 +95,42 @@ impl Channel for FeishuChannel {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adapt_markdown_converts_h3_to_bold() {
+        let input = "### 重要标题";
+        assert_eq!(FeishuChannel::adapt_markdown(input), "**重要标题**");
+    }
+
+    #[test]
+    fn adapt_markdown_preserves_h1_and_h2() {
+        let input = "# Title\n## Subtitle\nText";
+        assert_eq!(
+            FeishuChannel::adapt_markdown(input),
+            "# Title\n## Subtitle\nText"
+        );
+    }
+
+    #[test]
+    fn adapt_markdown_handles_mixed_headings() {
+        let input = "## Section\n### Detail\nParagraph\n### Another";
+        let result = FeishuChannel::adapt_markdown(input);
+        assert_eq!(result, "## Section\n**Detail**\nParagraph\n**Another**");
+    }
+
+    #[test]
+    fn adapt_markdown_empty_string() {
+        assert_eq!(FeishuChannel::adapt_markdown(""), "");
+    }
+
+    #[test]
+    fn adapt_markdown_h3_with_extra_spaces() {
+        let input = "   ### Indented heading";
+        let result = FeishuChannel::adapt_markdown(input);
+        assert_eq!(result, "**Indented heading**");
+    }
+}

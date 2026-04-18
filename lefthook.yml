@@ -1,0 +1,22 @@
+# Courier pre-commit hooks
+# Install: lefthook install  (or use .git/hooks manually)
+#
+# Equivalent to Python's ruff format + ruff check:
+#   cargo fmt  → code formatting
+#   cargo clippy → linting
+#   cargo test → run tests
+
+pre-commit:
+  parallel: false
+  commands:
+    fmt-check:
+      run: cargo fmt --check
+      glob: "*.rs"
+
+    clippy:
+      run: cargo clippy --all-targets -- -D warnings
+      glob: "*.rs"
+
+    test:
+      run: cargo test --lib
+      glob: "*.rs"

@@ -181,14 +181,170 @@ fn default_enabled() -> Option<bool> {
 
 impl AppConfig {
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
-        let content = std::fs::read_to_string(path.as_ref()).map_err(|e| {
-            CourierError::Config(format!("Failed to read config file: {}", e))
-        })?;
+        let content = std::fs::read_to_string(path.as_ref())
+            .map_err(|e| CourierError::Config(format!("Failed to read config file: {}", e)))?;
 
-        let config: AppConfig = toml::from_str(&content).map_err(|e| {
-            CourierError::Config(format!("Failed to parse config: {}", e))
-        })?;
+        let config: AppConfig = toml::from_str(&content)
+            .map_err(|e| CourierError::Config(format!("Failed to parse config: {}", e)))?;
 
         Ok(config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MINIMAL_CONFIG: &str = r#"
+[general]
+
+[sources]
+
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+
+[channels]
+"#;
+
+    #[test]
+    fn load_minimal_config_uses_defaults() {
+        let config: AppConfig = toml::from_str(MINIMAL_CONFIG).unwrap();
+        assert_eq!(config.general.log_level, "info");
+        assert_eq!(config.general.data_dir, "./data");
+        assert_eq!(config.general.timezone, "UTC");
+        assert_eq!(config.llm.model, "gpt-4o-mini");
+        assert_eq!(config.llm.max_tokens, 2000);
+    }
+
+    #[test]
+    fn hackernews_defaults_to_disabled() {
+        let config: AppConfig = toml::from_str(MINIMAL_CONFIG).unwrap();
+        assert!(!config.sources.hackernews.enabled);
+        // When using #[serde(default)] on the struct, Default::default() gives 0
+        // The default_top_n() of 20 only applies when the field is explicitly deserialized
+        assert_eq!(config.sources.hackernews.top_n, 0);
+    }
+
+    #[test]
+    fn hackernews_explicit_config_uses_default_top_n() {
+        let toml_str = r#"
+[general]
+[sources.hackernews]
+enabled = true
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+[channels]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.sources.hackernews.enabled);
+        assert_eq!(config.sources.hackernews.top_n, 20);
+    }
+
+    #[test]
+    fn email_defaults_to_disabled() {
+        let config: AppConfig = toml::from_str(MINIMAL_CONFIG).unwrap();
+        assert!(!config.channels.email.enabled);
+        // Default::default() gives 0; explicit [channels.email] section uses default_smtp_port 465
+    }
+
+    #[test]
+    fn email_explicit_config_uses_default_port_465() {
+        let toml_str = r#"
+[general]
+[sources]
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+[channels.email]
+enabled = true
+smtp_host = "smtp.example.com"
+smtp_username = "user"
+smtp_password = "pass"
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.channels.email.enabled);
+        assert_eq!(config.channels.email.smtp_port, 465);
+    }
+
+    #[test]
+    fn reddit_parses_subreddits() {
+        let toml_str = r#"
+[general]
+[sources.reddit]
+enabled = true
+subreddits = ["rust", "programming"]
+top_n = 10
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+[channels]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.sources.reddit.enabled);
+        assert_eq!(
+            config.sources.reddit.subreddits,
+            vec!["rust", "programming"]
+        );
+        assert_eq!(config.sources.reddit.top_n, 10);
+    }
+
+    #[test]
+    fn schedule_config_parses_correctly() {
+        let toml_str = r#"
+[general]
+[sources]
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+[channels]
+
+[[schedules]]
+name = "Daily Digest"
+cron = "0 0 9 * * *"
+sources = ["hackernews"]
+channels = ["telegram"]
+run_on_start = true
+max_retries = 3
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.schedules.len(), 1);
+        let sched = &config.schedules[0];
+        assert_eq!(sched.name, "Daily Digest");
+        assert_eq!(sched.cron, "0 0 9 * * *");
+        assert_eq!(sched.run_on_start, Some(true));
+        assert_eq!(sched.max_retries, Some(3));
+    }
+
+    #[test]
+    fn load_nonexistent_file_returns_config_error() {
+        let result = AppConfig::load("/nonexistent/config.toml");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rss_feeds_parse_correctly() {
+        let toml_str = r#"
+[general]
+[sources.rss]
+enabled = true
+feeds = [
+    { name = "V2EX", url = "https://v2ex.com/feed" },
+    { name = "Rust Blog", url = "https://blog.rust-lang.org/feed.xml" },
+]
+[llm]
+api_base = "https://api.openai.com/v1"
+api_key = "sk-test"
+[channels]
+"#;
+        let config: AppConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.sources.rss.enabled);
+        assert_eq!(config.sources.rss.feeds.len(), 2);
+        assert_eq!(config.sources.rss.feeds[0].name, "V2EX");
+        assert_eq!(
+            config.sources.rss.feeds[1].url,
+            "https://blog.rust-lang.org/feed.xml"
+        );
     }
 }

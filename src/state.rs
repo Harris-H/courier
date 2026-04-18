@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use crate::channels::Channel;
-use crate::config::{AppConfig, EmailConfig};
-use crate::db::Database;
-use crate::llm::LlmClient;
-use crate::scheduler::Scheduler;
-use crate::scheduler::task::DigestTask;
-use crate::scheduler::ExecutionRecord;
-use crate::sources::Source;
+use courier::channels::Channel;
+use courier::config::{AppConfig, EmailConfig};
+use courier::db::Database;
+use courier::llm::LlmClient;
+use courier::scheduler::task::DigestTask;
+use courier::scheduler::ExecutionRecord;
+use courier::scheduler::Scheduler;
+use courier::sources::Source;
 
 /// Shared application state accessible from API routes and scheduler
 pub struct AppState {
@@ -20,7 +20,7 @@ pub struct AppState {
     #[allow(dead_code)]
     pub llm: Arc<dyn LlmClient>,
     pub tasks: Vec<Arc<DigestTask>>,
-    pub schedule_configs: RwLock<Vec<crate::config::ScheduleConfig>>,
+    pub schedule_configs: RwLock<Vec<courier::config::ScheduleConfig>>,
     pub scheduler_history: Arc<RwLock<Vec<ExecutionRecord>>>,
     pub scheduler: Arc<Scheduler>,
     pub db: Arc<Database>,

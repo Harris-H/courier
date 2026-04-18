@@ -1,28 +1,32 @@
 mod api;
-mod channels;
 mod chat;
-mod config;
-mod db;
-mod error;
-mod llm;
-mod scheduler;
-mod sources;
 mod state;
+
+use courier::channels;
+use courier::config;
+use courier::db;
+use courier::llm;
+use courier::scheduler;
+use courier::sources;
 
 use std::sync::Arc;
 
 use anyhow::Result;
 use tokio::sync::RwLock;
 use tracing::info;
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_subscriber::EnvFilter;
 
 /// Custom timer that outputs timestamps in local timezone (respects TZ env var)
 struct LocalTimer;
 
 impl tracing_subscriber::fmt::time::FormatTime for LocalTimer {
     fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
-        write!(w, "{}", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z"))
+        write!(
+            w,
+            "{}",
+            chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z")
+        )
     }
 }
 
@@ -132,22 +136,36 @@ async fn main() -> Result<()> {
     }
 
     // Setup scheduler (only register enabled tasks)
-    let timezone: chrono_tz::Tz = config.general.timezone.parse()
-        .map_err(|e| anyhow::anyhow!("Invalid timezone '{}': {}", config.general.timezone, e))?;
+    let timezone: chrono_tz::Tz =
+        config.general.timezone.parse().map_err(|e| {
+            anyhow::anyhow!("Invalid timezone '{}': {}", config.general.timezone, e)
+        })?;
     info!("🕐 Scheduler timezone: {}", timezone);
     let sched = Arc::new(Scheduler::new(history.clone(), db.clone(), timezone).await?);
     let mut scheduled_count = 0;
     for task in &tasks {
-        let schedule_config = config.schedules.iter().find(|s| s.name == task.name).unwrap();
+        let schedule_config = config
+            .schedules
+            .iter()
+            .find(|s| s.name == task.name)
+            .unwrap();
         if schedule_config.enabled == Some(false) {
-            info!("⏸ Schedule '{}' is disabled, skipping scheduling", schedule_config.name);
+            info!(
+                "⏸ Schedule '{}' is disabled, skipping scheduling",
+                schedule_config.name
+            );
             continue;
         }
         sched.add_task(task.clone(), schedule_config).await?;
         scheduled_count += 1;
     }
     sched.start().await?;
-    info!("Scheduler started with {} task(s) ({} total, {} disabled)", scheduled_count, tasks.len(), tasks.len() - scheduled_count);
+    info!(
+        "Scheduler started with {} task(s) ({} total, {} disabled)",
+        scheduled_count,
+        tasks.len(),
+        tasks.len() - scheduled_count
+    );
 
     // Build shared app state
     let app_state = Arc::new(AppState {
@@ -213,7 +231,10 @@ fn build_sources(config: &AppConfig) -> Vec<Arc<dyn Source>> {
     sources
 }
 
-fn build_channels(config: &AppConfig, email_config: Arc<RwLock<config::EmailConfig>>) -> Vec<Arc<dyn Channel>> {
+fn build_channels(
+    config: &AppConfig,
+    email_config: Arc<RwLock<config::EmailConfig>>,
+) -> Vec<Arc<dyn Channel>> {
     let mut channels: Vec<Arc<dyn Channel>> = Vec::new();
 
     if config.channels.telegram.enabled {
@@ -223,9 +244,7 @@ fn build_channels(config: &AppConfig, email_config: Arc<RwLock<config::EmailConf
     }
 
     if config.channels.feishu.enabled {
-        channels.push(Arc::new(FeishuChannel::new(
-            config.channels.feishu.clone(),
-        )));
+        channels.push(Arc::new(FeishuChannel::new(config.channels.feishu.clone())));
     }
 
     // Always create email channel — it checks enabled state dynamically
@@ -254,4 +273,3 @@ async fn start_telegram_chat(bot_token: String, handler: Arc<ChatHandler>) {
     })
     .await;
 }
-
