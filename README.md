@@ -9,6 +9,8 @@
 - 📰 **Multi-source Fetching**: Hacker News / Reddit / RSS (with RSSHub support)
 - 🤖 **LLM-powered Summarization**: Generate daily digests via OpenAI-compatible APIs
 - 📮 **Multi-channel Push**: Telegram / Feishu (Lark) / Email (SMTP with Markdown→HTML rendering)
+- 📊 **Smart Reranking**: Heuristic scoring by engagement (50%) + freshness (35%) + source quality (15%), with heat labels (🔥Hot / 📈Rising / 📰Normal)
+- 🔗 **Cross-source Clustering**: Deduplicate same stories across sources via URL matching + Jaccard title similarity, with multi-source validation badges (🔗 dual-validated / 🔗 N-source validated)
 - ⏰ **Cron Scheduling**: Flexible cron expression configuration
 - 💬 **Chat Mode**: Interactive conversations via Telegram bot
 - 🖥️ **Web Dashboard**: Vue.js-based management panel with real-time status
@@ -18,11 +20,11 @@
 ## Architecture
 
 ```
-Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
-         ↑                                        ↑
-         └──────── Scheduler(Cron) ───────────────┘
-                        + Chat Mode
-                        + Web Dashboard (Hot-reload)
+Source(HN/Reddit/RSS) → Rerank(Score) → Cluster(Dedupe) → LLM(Summarize) → Channel(TG/Feishu/Email)
+         ↑                                                                        ↑
+         └──────────────────── Scheduler(Cron) ──────────────────────────────────┘
+                                    + Chat Mode
+                                    + Web Dashboard (Hot-reload)
 ```
 
 ## Tech Stack
@@ -33,6 +35,8 @@ Source(HN/Reddit/RSS) → LLM(Summarize) → Channel(TG/Feishu/Email)
 | Frontend | Vue 3, TypeScript, Tailwind CSS, Vite, ECharts |
 | Database | SQLite (rusqlite) |
 | LLM | OpenAI-compatible API (async-openai) |
+| Reranker | Heuristic scoring (engagement × freshness × source quality) |
+| Clustering | Jaccard similarity + URL canonical matching |
 | Bot | Teloxide (Telegram) |
 | Email | Lettre (SMTP), pulldown-cmark (Markdown→HTML) |
 
@@ -99,6 +103,24 @@ cd web && npm install && npm run dev
 ```
 
 > See [DEPLOY.md](./DEPLOY.md) for full deployment and development instructions.
+
+## Pipeline
+
+Each digest task runs through a 6-stage pipeline:
+
+1. **Fetch** — Concurrently pull articles from all configured sources (with per-source retry)
+2. **Rerank** — Score each article using `HeuristicReranker`:
+   - **Engagement** (50%): Normalized score + comments (log-scaled)
+   - **Freshness** (35%): Exponential decay, half-life = 12 hours
+   - **Source Quality** (15%): Editorial weight (HN 0.85 > Reddit 0.65 > RSS 0.50)
+   - Assigns heat labels: 🔥Hot (≥0.7) / 📈Rising (≥0.4) / 📰Normal
+3. **Cluster** — Merge same-story articles across sources:
+   - URL canonical matching (strongest signal)
+   - Jaccard word-token similarity on titles (threshold: 0.45)
+   - Adds cross-source badges: 🔗 dual-validated / 🔗 N-source validated
+4. **Format** — Build structured content with heat labels + source badges for LLM
+5. **Summarize** — Generate digest via LLM (with retry on failure)
+6. **Push** — Send to all configured channels concurrently
 
 ## Configuration
 

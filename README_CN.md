@@ -9,6 +9,8 @@
 - 📰 **多数据源抓取**: Hacker News / Reddit / RSS（支持 RSSHub）
 - 🤖 **LLM 智能摘要**: 调用 OpenAI 兼容 API 生成日报
 - 📮 **多通道推送**: Telegram / 飞书 / Email（SMTP，Markdown→HTML 富文本渲染）
+- 📊 **智能重排序**: 启发式评分 = 互动热度(50%) + 新鲜度(35%) + 源质量(15%)，附带热度标签（🔥热门 / 📈上升 / 📰普通）
+- 🔗 **跨源聚类去重**: 通过 URL 匹配 + Jaccard 标题相似度合并同一新闻，附带多源验证标签（🔗 双源验证 / 🔗 N源验证）
 - ⏰ **定时调度**: Cron 表达式灵活配置
 - 💬 **聊天模式**: 通过 Telegram Bot 交互式对话
 - 🖥️ **Web 仪表盘**: Vue.js 管理面板，实时查看状态
@@ -18,11 +20,11 @@
 ## 架构
 
 ```
-Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
-         ↑                                    ↑
-         └──────── Scheduler(Cron) ───────────┘
-                        + 聊天模式
-                        + Web 仪表盘（热重载）
+Source(HN/Reddit/RSS) → Rerank(评分) → Cluster(去重) → LLM(摘要) → Channel(TG/飞书/Email)
+         ↑                                                                    ↑
+         └──────────────────── Scheduler(Cron) ─────────────────────────────┘
+                                    + 聊天模式
+                                    + Web 仪表盘（热重载）
 ```
 
 ## 技术栈
@@ -33,6 +35,8 @@ Source(HN/Reddit/RSS) → LLM(摘要) → Channel(TG/飞书/Email)
 | 前端 | Vue 3, TypeScript, Tailwind CSS, Vite, ECharts |
 | 数据库 | SQLite (rusqlite) |
 | LLM | OpenAI 兼容 API (async-openai) |
+| 重排序 | 启发式评分（互动热度 × 新鲜度 × 源质量） |
+| 聚类去重 | Jaccard 相似度 + URL 规范化匹配 |
 | Bot | Teloxide (Telegram) |
 | 邮件 | Lettre (SMTP)、pulldown-cmark (Markdown→HTML) |
 
@@ -99,6 +103,24 @@ cd web && npm install && npm run dev
 ```
 
 > 详见 [DEPLOY.md](./DEPLOY.md) 了解完整的部署和开发说明。
+
+## 处理流水线
+
+每个日报任务经过 6 阶段流水线处理：
+
+1. **抓取 (Fetch)** — 并发拉取所有配置源的文章（支持每源独立重试）
+2. **重排序 (Rerank)** — 使用 `HeuristicReranker` 对每篇文章评分：
+   - **互动热度** (50%)：标准化的 score + 评论数（对数缩放）
+   - **新鲜度** (35%)：指数衰减，半衰期 = 12 小时
+   - **源质量** (15%)：编辑质量权重（HN 0.85 > Reddit 0.65 > RSS 0.50）
+   - 分配热度标签：🔥热门 (≥0.7) / 📈上升 (≥0.4) / 📰普通
+3. **聚类去重 (Cluster)** — 跨源合并同一新闻：
+   - URL 规范化匹配（最强信号）
+   - 标题词组 Jaccard 相似度（阈值：0.45）
+   - 添加跨源验证标签：🔗 双源验证 / 🔗 N源验证
+4. **格式化 (Format)** — 构建带热度标签 + 来源标注的结构化内容供 LLM 使用
+5. **摘要生成 (Summarize)** — 通过 LLM 生成日报摘要（失败自动重试）
+6. **推送 (Push)** — 并发发送至所有配置的推送渠道
 
 ## 配置说明
 
