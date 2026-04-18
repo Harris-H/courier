@@ -7,6 +7,7 @@ use tracing::{error, info, warn};
 use crate::channels::Channel;
 use crate::config::ScheduleConfig;
 use crate::llm::LlmClient;
+use crate::reranker::{HeuristicReranker, RankedArticle, Reranker};
 use crate::sources::{Article, Source};
 
 /// Stats returned after successful task execution
@@ -68,14 +69,26 @@ impl DigestTask {
 
         info!("Collected {} articles total", all_articles.len());
 
-        // 2. Build content for LLM
-        let content = Self::format_articles(&all_articles);
+        // 2. Rerank: score articles by engagement + freshness + source quality
+        let reranker = HeuristicReranker::default();
+        let ranked = reranker.rerank(all_articles);
+        let articles_fetched = ranked.len();
 
-        // 3. Summarize via LLM (with retry)
+        info!(
+            "Reranked {} articles (top: {} {:.2})",
+            ranked.len(),
+            ranked.first().map(|r| r.meta.heat_label).unwrap_or(""),
+            ranked.first().map(|r| r.meta.rank_score).unwrap_or(0.0),
+        );
+
+        // 3. Build content for LLM (with heat labels)
+        let content = Self::format_ranked_articles(&ranked);
+
+        // 4. Summarize via LLM (with retry)
         let digest = self.summarize_with_retry(&content).await?;
         info!("Digest generated ({} chars)", digest.len());
 
-        // 4. Push to all channels concurrently
+        // 5. Push to all channels concurrently
         let title = format!(
             "📬 {} - {}",
             self.name,
@@ -84,7 +97,7 @@ impl DigestTask {
         let (sent, failed) = self.push_to_channels(&title, &digest).await;
 
         Ok(TaskStats {
-            articles_fetched: all_articles.len(),
+            articles_fetched,
             digest_length: digest.len(),
             digest_content: digest,
             channels_sent: sent,
@@ -144,6 +157,7 @@ impl DigestTask {
     }
 
     /// Format articles into a text block for LLM consumption
+    #[cfg(test)]
     fn format_articles(articles: &[Article]) -> String {
         articles
             .iter()
@@ -159,6 +173,47 @@ impl DigestTask {
                 if let Some(comments) = a.comments_count {
                     entry.push_str(&format!(" | Comments: {}", comments));
                 }
+                if let Some(summary) = &a.summary {
+                    let truncated: String = summary.chars().take(200).collect();
+                    entry.push_str(&format!("\n   {}", truncated));
+                }
+                entry
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    }
+
+    /// Format ranked articles with heat labels for LLM consumption.
+    /// Articles are already sorted by rank_score (highest first).
+    fn format_ranked_articles(ranked: &[RankedArticle]) -> String {
+        ranked
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                let a = &r.article;
+                let mut entry = format!(
+                    "{}. {} [{}] {}",
+                    i + 1,
+                    r.meta.heat_label,
+                    a.source,
+                    a.title
+                );
+                if let Some(url) = &a.url {
+                    entry.push_str(&format!("\n   URL: {}", url));
+                }
+                if let Some(score) = a.score {
+                    entry.push_str(&format!(" | Score: {}", score));
+                }
+                if let Some(comments) = a.comments_count {
+                    entry.push_str(&format!(" | Comments: {}", comments));
+                }
+                entry.push_str(&format!(
+                    " | Rank: {:.2} (E:{:.0}% F:{:.0}% Q:{:.0}%)",
+                    r.meta.rank_score,
+                    r.meta.engagement * 100.0,
+                    r.meta.freshness * 100.0,
+                    r.meta.source_quality * 100.0,
+                ));
                 if let Some(summary) = &a.summary {
                     let truncated: String = summary.chars().take(200).collect();
                     entry.push_str(&format!("\n   {}", truncated));
@@ -326,6 +381,49 @@ mod tests {
     #[test]
     fn format_articles_empty_returns_empty_string() {
         let formatted = DigestTask::format_articles(&[]);
+        assert!(formatted.is_empty());
+    }
+
+    #[test]
+    fn format_ranked_articles_includes_heat_labels() {
+        let ranked = vec![RankedArticle {
+            article: make_article("Hot Post", "hackernews"),
+            meta: crate::reranker::RankMeta {
+                engagement: 0.9,
+                freshness: 0.8,
+                source_quality: 0.85,
+                rank_score: 0.85,
+                heat_label: "🔥热门",
+            },
+        }];
+        let formatted = DigestTask::format_ranked_articles(&ranked);
+        assert!(formatted.contains("🔥热门"));
+        assert!(formatted.contains("[hackernews]"));
+        assert!(formatted.contains("Hot Post"));
+        assert!(formatted.contains("Rank: 0.85"));
+    }
+
+    #[test]
+    fn format_ranked_articles_includes_signal_percentages() {
+        let ranked = vec![RankedArticle {
+            article: make_article("Test", "reddit"),
+            meta: crate::reranker::RankMeta {
+                engagement: 0.5,
+                freshness: 0.75,
+                source_quality: 0.65,
+                rank_score: 0.6,
+                heat_label: "📈上升",
+            },
+        }];
+        let formatted = DigestTask::format_ranked_articles(&ranked);
+        assert!(formatted.contains("E:50%"));
+        assert!(formatted.contains("F:75%"));
+        assert!(formatted.contains("Q:65%"));
+    }
+
+    #[test]
+    fn format_ranked_articles_empty_returns_empty_string() {
+        let formatted = DigestTask::format_ranked_articles(&[]);
         assert!(formatted.is_empty());
     }
 }
