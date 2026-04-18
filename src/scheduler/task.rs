@@ -5,9 +5,10 @@ use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 use crate::channels::Channel;
+use crate::cluster;
 use crate::config::ScheduleConfig;
 use crate::llm::LlmClient;
-use crate::reranker::{HeuristicReranker, RankedArticle, Reranker};
+use crate::reranker::{HeuristicReranker, Reranker};
 use crate::sources::{Article, Source};
 
 /// Stats returned after successful task execution
@@ -81,14 +82,23 @@ impl DigestTask {
             ranked.first().map(|r| r.meta.rank_score).unwrap_or(0.0),
         );
 
-        // 3. Build content for LLM (with heat labels)
-        let content = Self::format_ranked_articles(&ranked);
+        // 3. Cluster: merge same-story articles across sources
+        let clusters = cluster::cluster_articles(ranked, &cluster::ClusterConfig::default());
+        let cross_validated = clusters.iter().filter(|c| c.is_cross_validated()).count();
+        info!(
+            "Clustered into {} stories ({} cross-source validated)",
+            clusters.len(),
+            cross_validated,
+        );
 
-        // 4. Summarize via LLM (with retry)
+        // 4. Build content for LLM (with heat labels + cross-source badges)
+        let content = cluster::format_clustered_articles(&clusters);
+
+        // 5. Summarize via LLM (with retry)
         let digest = self.summarize_with_retry(&content).await?;
         info!("Digest generated ({} chars)", digest.len());
 
-        // 5. Push to all channels concurrently
+        // 6. Push to all channels concurrently
         let title = format!(
             "📬 {} - {}",
             self.name,
@@ -185,7 +195,8 @@ impl DigestTask {
 
     /// Format ranked articles with heat labels for LLM consumption.
     /// Articles are already sorted by rank_score (highest first).
-    fn format_ranked_articles(ranked: &[RankedArticle]) -> String {
+    #[cfg(test)]
+    fn format_ranked_articles(ranked: &[crate::reranker::RankedArticle]) -> String {
         ranked
             .iter()
             .enumerate()
@@ -303,6 +314,7 @@ impl DigestTask {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::reranker::RankedArticle;
 
     fn make_article(title: &str, source: &str) -> Article {
         Article {
